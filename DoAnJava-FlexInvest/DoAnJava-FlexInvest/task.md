@@ -1,0 +1,15 @@
+- [x] CustomerDashboardPanel.java
+- [x] AdminDashboardPanel.java
+- [x] StaffDashboardPanel.java
+- [x] DepositApprovalPanel.java
+- [x] WithdrawApprovalPanel.java
+- [x] EkycApprovalPanel.java
+- [x] UserManagementPanel.java
+- [x] MissionManagementPanel.java
+- [x] SavingsProductPanel.java
+- [x] TransactionHistoryPanel.java
+- [x] WalletPanel.java
+- [x] MoneyManagementPanel.java
+- [x] MyInvestmentsPanel.java
+- [x] SavingsProductListPanel.java
+- [x] MissionPanel.java
