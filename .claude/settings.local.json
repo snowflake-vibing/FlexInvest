@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir \"d:\\\\do_an_java\\\\FlexInvest\" /s /b)",
+      "PowerShell(head -30)",
+      "PowerShell(Get-ChildItem \"d:\\\\do_an_java\\\\FlexInvest\" -Recurse -File | Select-Object -First 30 | ForEach-Object { $_.FullName })",
+      "PowerShell(Select-String -Pattern \"TransactionType|transactionType|typeCode|type_code\" -CaseSensitive:$false)",
+      "PowerShell(Select-String -Path \"d:\\\\do_an_java\\\\FlexInvest\\\\DoAnJava-FlexInvest\\\\demo_data.sql\" -Pattern \"TRANSACTION_TYPE|TransactionType\" -CaseSensitive:$false)"
+    ]
+  }
+}
