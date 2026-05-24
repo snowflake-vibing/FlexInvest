@@ -27,6 +27,20 @@ public class NotificationDialog extends JDialog {
     private static final Color TEXT_MUTED = UIUtils.TEXT_MUTED;
     private static final Color RED       = new Color(239, 68, 68);
 
+    // Font Awesome để hiển thị icon (tránh lỗi emoji/unicode trên Swing/Windows)
+    private static final Font FA_FONT;
+    static {
+        Font f;
+        try {
+            f = Font.createFont(Font.TRUETYPE_FONT,
+                new java.io.File("src/Resources/fa-solid-900.ttf")).deriveFont(14f);
+        } catch (Exception e) {
+            f = new Font("Segoe UI", Font.PLAIN, 14);
+        }
+        FA_FONT = f;
+    }
+
+
     private final int                    userId;
     private final NotificationController notifCtrl;
     private final Runnable               onDismiss;   // callback cập nhật badge
@@ -53,11 +67,22 @@ public class NotificationDialog extends JDialog {
             }
         });
         
-        // Fix "chỉ bấm được 1 lần": Tự động đóng khi click ra ngoài
+        // Tự động đóng khi click ra ngoài, nhưng dùng Timer delay để tránh
+        // đóng nhầm khi focus chuyển sang child component bên trong dialog
+        final javax.swing.Timer[] closeTimer = { null };
         addWindowFocusListener(new java.awt.event.WindowFocusListener() {
-            @Override public void windowGainedFocus(java.awt.event.WindowEvent e) {}
+            @Override public void windowGainedFocus(java.awt.event.WindowEvent e) {
+                // Huỷ timer nếu focus quay lại dialog
+                if (closeTimer[0] != null) {
+                    closeTimer[0].stop();
+                    closeTimer[0] = null;
+                }
+            }
             @Override public void windowLostFocus(java.awt.event.WindowEvent e) {
-                dispose();
+                // Delay 200ms trước khi đóng — nếu focus quay lại thì hủy
+                closeTimer[0] = new javax.swing.Timer(200, ev -> dispose());
+                closeTimer[0].setRepeats(false);
+                closeTimer[0].start();
             }
         });
 
@@ -74,29 +99,62 @@ public class NotificationDialog extends JDialog {
         getContentPane().setBackground(BG);
 
         // ── Header ────────────────────────────────────────────────────────────
-        JPanel header = new JPanel(new BorderLayout());
+        JPanel header = new JPanel(new BorderLayout(10, 0));
         header.setBackground(UIUtils.NAVY);
         header.setBorder(new EmptyBorder(14, 18, 14, 18));
 
-        JLabel title = new JLabel("🔔  Thông báo");
-        title.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        title.setForeground(Color.WHITE);
+        // Icon chuông dùng Font Awesome — tránh lỗi emoji không render trên Swing/Windows
+        JLabel iconBell = new JLabel("\uf0f3");
+        iconBell.setFont(FA_FONT.deriveFont(16f));
+        iconBell.setForeground(Color.WHITE);
 
-        JButton btnMarkAll = new JButton("✓  Đánh dấu tất cả đã đọc");
-        btnMarkAll.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        btnMarkAll.setBackground(new Color(30, 65, 115));
-        btnMarkAll.setForeground(Color.WHITE);
-        btnMarkAll.setBorderPainted(false);
-        btnMarkAll.setFocusPainted(false);
-        btnMarkAll.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        btnMarkAll.addActionListener(e -> {
-            notifCtrl.markAllRead(userId);
-            loadNotifications();
-            if (onDismiss != null) onDismiss.run();
+        JLabel lblTitle = new JLabel("Thông báo");
+        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        lblTitle.setForeground(Color.WHITE);
+
+        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        titlePanel.setOpaque(false);
+        titlePanel.add(iconBell);
+        titlePanel.add(lblTitle);
+
+        // Nút đánh dấu — icon check dùng Font Awesome
+        JPanel btnMarkAllPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
+        btnMarkAllPanel.setOpaque(false);
+
+        JLabel iconCheck = new JLabel("\uf00c");
+        iconCheck.setFont(FA_FONT.deriveFont(11f));
+        iconCheck.setForeground(Color.WHITE);
+
+        JLabel lblMarkAll = new JLabel("Đánh dấu tất cả đã đọc");
+        lblMarkAll.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        lblMarkAll.setForeground(Color.WHITE);
+        lblMarkAll.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+        btnMarkAllPanel.add(iconCheck);
+        btnMarkAllPanel.add(lblMarkAll);
+
+        // Wrap trong panel có background để hover effect
+        JPanel btnMarkAllWrapper = new JPanel(new BorderLayout());
+        btnMarkAllWrapper.setBackground(new Color(30, 65, 115));
+        btnMarkAllWrapper.setBorder(new EmptyBorder(4, 10, 4, 10));
+        btnMarkAllWrapper.add(btnMarkAllPanel, BorderLayout.CENTER);
+        btnMarkAllWrapper.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btnMarkAllWrapper.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override public void mouseEntered(java.awt.event.MouseEvent e) {
+                btnMarkAllWrapper.setBackground(new Color(50, 90, 150));
+            }
+            @Override public void mouseExited(java.awt.event.MouseEvent e) {
+                btnMarkAllWrapper.setBackground(new Color(30, 65, 115));
+            }
+            @Override public void mouseClicked(java.awt.event.MouseEvent e) {
+                notifCtrl.markAllRead(userId);
+                loadNotifications();
+                if (onDismiss != null) onDismiss.run();
+            }
         });
 
-        header.add(title,      BorderLayout.WEST);
-        header.add(btnMarkAll, BorderLayout.EAST);
+        header.add(titlePanel,       BorderLayout.WEST);
+        header.add(btnMarkAllWrapper, BorderLayout.EAST);
         add(header, BorderLayout.NORTH);
 
         // ── Scrollable list ───────────────────────────────────────────────────
@@ -111,6 +169,7 @@ public class NotificationDialog extends JDialog {
         sp.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         add(sp, BorderLayout.CENTER);
     }
+
 
     // =========================================================================
     //  Load
@@ -224,7 +283,7 @@ public class NotificationDialog extends JDialog {
      * Mở dialog cạnh component nguồn (icon chuông).
      * Dùng trong Sidebar: NotificationDialog.open(frame, bellBtn, userId, ctrl, onDismiss);
      */
-    public static void open(Frame frame, Component anchor,
+    public static NotificationDialog open(Frame frame, Component anchor,
                             int userId, NotificationController ctrl,
                             Runnable onDismiss) {
         NotificationDialog dlg = new NotificationDialog(frame, userId, ctrl, onDismiss);
@@ -241,5 +300,6 @@ public class NotificationDialog extends JDialog {
 
         dlg.setLocation(x, y);
         dlg.setVisible(true);
+        return dlg;
     }
 }

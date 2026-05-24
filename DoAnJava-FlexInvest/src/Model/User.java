@@ -10,6 +10,7 @@ public class User {
     private Timestamp createdAt;
     private String status;
     private String referralCode;
+    private String phone;
     private int isDeleted;
 
     public User() {}
@@ -24,6 +25,12 @@ public class User {
         this.status       = status;
         this.referralCode = referralCode;
         this.isDeleted    = isDeleted;
+    }
+
+    public User(int userId, int roleId, String email, String passwordHash,
+                Timestamp createdAt, String status, String referralCode, String phone, int isDeleted) {
+        this(userId, roleId, email, passwordHash, createdAt, status, referralCode, isDeleted);
+        this.phone = phone;
     }
 
     public int    getUserId()               { return userId; }
@@ -46,6 +53,9 @@ public class User {
 
     public String getReferralCode()         { return referralCode; }
     public void   setReferralCode(String v) { this.referralCode = v; }
+
+    public String getPhone()                { return phone; }
+    public void   setPhone(String v)        { this.phone = v; }
 
     public int    getIsDeleted()            { return isDeleted; }
     public void   setIsDeleted(int v)       { this.isDeleted = v; }

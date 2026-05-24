@@ -9,6 +9,8 @@ import View.customer.MoneyManagementPanel;
 import View.customer.MyInvestmentsPanel;
 import View.customer.SavingsProductListPanel;
 import View.customer.WalletPanel;
+import View.shared.ProfilePanel;
+import View.shared.SettingsPanel;
 import View.permission.PermissionManagementView;
 import View.staff.AdminDashboardPanel;
 import View.staff.DepositApprovalPanel;
@@ -42,10 +44,11 @@ public class MainPage extends JFrame {
     private final boolean      isStaff;   // roleId == 2
 
     // ── Màu ─────────────────────────────────────────────────────────────────────────
-    private static final Color PRIMARY   = UIUtils.INDIGO;
-    private static final Color BLUE      = new Color(0,  162, 232);
-    private static final Color SIDEBAR   = PRIMARY;
-    private static final Color BG        = new Color(238, 243, 250);
+    private static final Color PRIMARY        = UIUtils.INDIGO;
+    private static final Color BLUE           = new Color(0,  162, 232);
+    private static final Color SIDEBAR        = new Color(15, 23, 42);
+    private static final Color SIDEBAR_ACTIVE = new Color(30, 41, 59);
+    private static final Color BG             = new Color(248, 250, 252);
     private static final Color CARD_BG   = Color.WHITE;
     private static final Color RED       = new Color(239, 68,  68);
     private static final Color TEXT_DARK = new Color(30,  30,  40);
@@ -62,6 +65,8 @@ public class MainPage extends JFrame {
     private WalletPanel             walletPanel;
     private MoneyManagementPanel    moneyPanel;
     private MissionPanel            missionPanel;
+    private ProfilePanel            profilePanel;
+    private SettingsPanel           settingsPanel;
 
     // Lazy-init panels — Staff
     private StaffDashboardPanel      staffDashboardPanel;
@@ -76,12 +81,14 @@ public class MainPage extends JFrame {
     private static final String CARD_WALLET      = "WALLET";
     private static final String CARD_MONEY       = "MONEY";
     private static final String CARD_MISSION     = "MISSION";
+    private static final String CARD_PROFILE     = "PROFILE";
     private static final String CARD_SETTINGS    = "SETTINGS";
 
     // Notification
     private final NotificationController notifCtrl = new NotificationController();
-    private JButton      bellBtn;
-    private JLabel       badgeLbl;
+    private JButton              bellBtn;
+    private JLabel               badgeLbl;
+    private NotificationDialog   currentNotifDialog;
 
     // Lazy-init panels — Admin
     private AdminDashboardPanel      adminDashboardPanel;
@@ -143,6 +150,7 @@ public class MainPage extends JFrame {
         contentPane.setBackground(BG);
 
         // Add placeholder panels for cards not yet loaded
+        contentPane.add(new JPanel(), CARD_PROFILE);
         contentPane.add(new JPanel(), CARD_SETTINGS);
 
         root.add(buildTopBar(),  BorderLayout.NORTH);
@@ -270,11 +278,16 @@ public class MainPage extends JFrame {
     }
 
     private void openNotificationDialog() {
-        NotificationDialog.open(
+        if (currentNotifDialog != null && currentNotifDialog.isVisible()) {
+            currentNotifDialog.dispose();
+            currentNotifDialog = null;
+            return;
+        }
+        currentNotifDialog = NotificationDialog.open(
             this, bellBtn,
             currentAccount.getUser().getUserId(),
             notifCtrl,
-            this::refreshNotificationBadge  // callback sau khi đọc
+            this::refreshNotificationBadge
         );
     }
 
@@ -390,7 +403,7 @@ public class MainPage extends JFrame {
                 adminLbl.setMaximumSize(new Dimension(210, 26));
                 JLabel lbl = new JLabel("  QUẢN TRỊ");
                 lbl.setFont(new Font("Segoe UI", Font.BOLD, 10));
-                lbl.setForeground(new Color(70, 40, 0));
+                lbl.setForeground(new Color(148, 163, 184));
                 adminLbl.add(lbl, BorderLayout.CENTER);
                 side.add(adminLbl);
 
@@ -419,6 +432,28 @@ public class MainPage extends JFrame {
             }
         }
 
+        side.add(Box.createVerticalGlue());
+
+        JPanel[] profileRef = new JPanel[1];
+        JPanel itemProfile = buildMenuItemCustom("Hồ sơ cá nhân", "", e -> {
+            if (activeItem != null) setActiveStyle(activeItem, false);
+            activeItem = profileRef[0];
+            setActiveStyle(profileRef[0], true);
+            showPanel(CARD_PROFILE);
+        });
+        profileRef[0] = itemProfile;
+        side.add(itemProfile);
+
+        JPanel[] settingsRef = new JPanel[1];
+        JPanel itemSettings = buildMenuItemCustom("Cài đặt", "", e -> {
+            if (activeItem != null) setActiveStyle(activeItem, false);
+            activeItem = settingsRef[0];
+            setActiveStyle(settingsRef[0], true);
+            showPanel(CARD_SETTINGS);
+        });
+        settingsRef[0] = itemSettings;
+        side.add(itemSettings);
+
         this.activeItem = activeItemRef;
         return side;
     }
@@ -434,10 +469,9 @@ public class MainPage extends JFrame {
 
         JLabel iconLbl = new JLabel(iconCode, SwingConstants.CENTER);
         iconLbl.setFont(FA_FONT);
-        iconLbl.setPreferredSize(new Dimension(32, 32));
+        iconLbl.setPreferredSize(new Dimension(28, 28));
         iconLbl.setOpaque(true);
-        iconLbl.putClientProperty("FlatLaf.style", "arc: 12;");
-        
+
         JLabel lbl = new JLabel(title);
 
         item.add(iconLbl, BorderLayout.WEST);
@@ -446,7 +480,7 @@ public class MainPage extends JFrame {
 
         item.addMouseListener(new MouseAdapter() {
             public void mouseEntered(MouseEvent e) {
-                if (activeItem != item) item.setBackground(new Color(251, 191, 36));
+                if (activeItem != item) item.setBackground(SIDEBAR_ACTIVE);
             }
             public void mouseExited(MouseEvent e) {
                 if (activeItem != item) item.setBackground(SIDEBAR);
@@ -472,21 +506,20 @@ public class MainPage extends JFrame {
 
         JLabel iconLbl = new JLabel(iconCode, SwingConstants.CENTER);
         iconLbl.setFont(FA_FONT);
-        iconLbl.setPreferredSize(new Dimension(32, 32));
+        iconLbl.setPreferredSize(new Dimension(28, 28));
         iconLbl.setOpaque(true);
-        iconLbl.putClientProperty("FlatLaf.style", "arc: 12;");
-        iconLbl.setBackground(new Color(255, 255, 255, 80));
-        iconLbl.setForeground(TEXT_DARK);
+        iconLbl.setBackground(SIDEBAR);
+        iconLbl.setForeground(new Color(148, 163, 184));
 
         JLabel lbl = new JLabel(title);
         lbl.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        lbl.setForeground(TEXT_DARK);
+        lbl.setForeground(new Color(148, 163, 184));
 
         item.add(iconLbl, BorderLayout.WEST);
         item.add(lbl, BorderLayout.CENTER);
 
         item.addMouseListener(new MouseAdapter() {
-            public void mouseEntered(MouseEvent e) { item.setBackground(new Color(251, 191, 36)); }
+            public void mouseEntered(MouseEvent e) { item.setBackground(SIDEBAR_ACTIVE); }
             public void mouseExited(MouseEvent e)  { item.setBackground(SIDEBAR); }
             public void mouseClicked(MouseEvent e) { if (onClick != null) onClick.actionPerformed(null); }
         });
@@ -495,21 +528,27 @@ public class MainPage extends JFrame {
 
     private void setActiveStyle(JPanel item, boolean active) {
         if (item == null) return;
-        item.setBackground(active ? Color.WHITE : SIDEBAR);
-        if (item.getComponentCount() > 1 && item.getComponent(0) instanceof JLabel && item.getComponent(1) instanceof JLabel) {
-            JLabel iconLbl = (JLabel) item.getComponent(0);
-            iconLbl.setBackground(active ? View.UIUtils.PRIMARY : new Color(255, 255, 255, 80));
-            iconLbl.setForeground(active ? Color.WHITE : TEXT_DARK);
+        item.setBackground(active ? SIDEBAR_ACTIVE : SIDEBAR);
+        item.setBorder(active
+            ? BorderFactory.createCompoundBorder(
+                  BorderFactory.createMatteBorder(0, 3, 0, 0, PRIMARY),
+                  new EmptyBorder(5, 9, 5, 8))
+            : new EmptyBorder(5, 12, 5, 8));
 
-            JLabel lbl = (JLabel) item.getComponent(1);
+        if (item.getComponentCount() > 1
+                && item.getComponent(0) instanceof JLabel iconLbl
+                && item.getComponent(1) instanceof JLabel lbl) {
+            iconLbl.setBackground(active ? PRIMARY : SIDEBAR);
+            iconLbl.setForeground(active ? Color.WHITE : new Color(148, 163, 184));
+
             lbl.setFont(new Font("Segoe UI", active ? Font.BOLD : Font.PLAIN, 13));
-            lbl.setForeground(TEXT_DARK);
+            lbl.setForeground(active ? Color.WHITE : new Color(148, 163, 184));
         }
     }
 
     private JPanel buildSeparator() {
         JPanel sep = new JPanel();
-        sep.setBackground(new Color(251, 191, 36));
+        sep.setBackground(new Color(51, 65, 85));
         sep.setMaximumSize(new Dimension(180, 1));
         sep.setAlignmentX(LEFT_ALIGNMENT);
         return sep;
@@ -562,7 +601,18 @@ public class MainPage extends JFrame {
                     contentPane.add(missionPanel, CARD_MISSION);
                 } else missionPanel.loadData();
             }
-            case CARD_SETTINGS -> { /* placeholder */ }
+            case CARD_PROFILE -> {
+                if (profilePanel == null) {
+                    profilePanel = new ProfilePanel(currentAccount);
+                    contentPane.add(profilePanel, CARD_PROFILE);
+                }
+            }
+            case CARD_SETTINGS -> {
+                if (settingsPanel == null) {
+                    settingsPanel = new SettingsPanel(currentAccount, this);
+                    contentPane.add(settingsPanel, CARD_SETTINGS);
+                }
+            }
 
             // ── Admin panels ──────────────────────────────────────────────────
             case CARD_ADMIN_DASH -> {

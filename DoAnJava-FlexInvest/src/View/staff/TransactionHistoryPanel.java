@@ -180,40 +180,8 @@ public class TransactionHistoryPanel extends JPanel {
         }.execute();
     }
 
-    /**
-     * Query toàn bộ TRANSACTION từ DB (không lọc theo user).
-     * TODO: Chuyển sang WalletDAO.getAllTransactions()
-     */
     private List<Transaction> loadAllTransactions() {
-        List<Transaction> list = new ArrayList<>();
-        String sql = """
-            SELECT t.transaction_id, t.wallet_id, t.type_code, t.amount,
-                   t.status, t.created_at, t.is_deleted,
-                   w.user_id
-            FROM TRANSACTION t
-            JOIN WALLET w ON t.wallet_id = w.wallet_id
-            WHERE t.is_deleted = 0
-            ORDER BY t.created_at DESC
-            """;
-        try (var con = ConnectDB.ConnectionOracle.getOracleConnection();
-             var ps = con.prepareStatement(sql);
-             var rs = ps.executeQuery()) {
-            while (rs.next()) {
-                Transaction t = new Transaction();
-                t.setTransactionId(rs.getInt("transaction_id"));
-                t.setWalletId(rs.getInt("wallet_id"));
-                t.setTypeCode(rs.getString("type_code"));
-                t.setAmount(rs.getBigDecimal("amount"));
-                t.setStatus(rs.getString("status"));
-                java.sql.Timestamp ts = rs.getTimestamp("created_at");
-                if (ts != null) t.setCreatedAt(ts.toLocalDateTime());
-                t.setIsDeleted(rs.getInt("is_deleted"));
-                list.add(t);
-            }
-        } catch (Exception e) {
-            System.err.println("[TransactionHistoryPanel] " + e.getMessage());
-        }
-        return list;
+        return walletDAO.getAllTransactions();
     }
 
     private void applyFilter() {

@@ -177,39 +177,9 @@ public class RequestDAO extends BaseDAO<Deposit> {
                 if (rows == 0) { con.rollback(); return false; }
             }
 
-            // 4. Ghi TRANSACTION credit (COMPLETED) trong cùng connection
-            String insTx = """
-                INSERT INTO TRANSACTION (wallet_id, type_code, amount, status, created_at, is_deleted)
-                VALUES (?, 'DEPOSIT', ?, 'COMPLETED', SYSDATE, 0)
-                """;
-            int creditTxId = -1;
-            try (PreparedStatement ps = con.prepareStatement(insTx, new String[]{"transaction_id"})) {
-                ps.setInt(1, walletId);
-                ps.setBigDecimal(2, amount);
-                ps.executeUpdate();
-                try (ResultSet rs = ps.getGeneratedKeys()) {
-                    if (rs.next()) creditTxId = rs.getInt(1);
-                }
-            }
-
-            // 5. Ghi LEDGER (nếu có bảng LEDGER)
-            if (creditTxId > 0) {
-                try {
-                    String insLedger = """
-                        INSERT INTO LEDGER (transaction_id, entry_type, amount, note, created_at, is_deleted)
-                        VALUES (?, 'CREDIT', ?, ?, SYSDATE, 0)
-                        """;
-                    try (PreparedStatement ps = con.prepareStatement(insLedger)) {
-                        ps.setInt(1, creditTxId);
-                        ps.setBigDecimal(2, amount);
-                        ps.setString(3, "Duyệt nạp #" + depositId);
-                        ps.executeUpdate();
-                    }
-                } catch (SQLException ignored) {
-                    // LEDGER có thể không bắt buộc — bỏ qua nếu bảng chưa tồn tại
-                }
-            }
-
+            // Bước 1 (updateTxStatus → COMPLETED) + bước 2 (bank_trans_ref) + bước 3 (credit ví)
+            // là đủ để hoàn tất duyệt nạp tiền.
+            // Không cần insert thêm TRANSACTION credit vì bản ghi gốc đã COMPLETED.
             con.commit();
             return true;
 
@@ -422,6 +392,23 @@ public class RequestDAO extends BaseDAO<Deposit> {
         return queryWithdraws(sql, investmentId);
     }
 
+    /** Đếm tổng lệnh PENDING (deposit + withdraw) cho admin dashboard. */
+    public int countPending() {
+        String sql = "SELECT " +
+                     "  (SELECT COUNT(*) FROM DEPOSIT d JOIN TRANSACTION t ON d.transaction_id=t.transaction_id" +
+                     "   WHERE t.status='PENDING' AND d.is_deleted=0)" +
+                     "  + (SELECT COUNT(*) FROM WITHDRAW WHERE status='PENDING' AND is_deleted=0)" +
+                     " FROM DUAL";
+        try (Connection con = getConnection();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) return rs.getInt(1);
+        } catch (Exception e) {
+            System.err.println("RequestDAO.countPending: " + e);
+        }
+        return 0;
+    }
+
     // =========================================================================
     // Low-level helpers
     // =========================================================================
@@ -456,14 +443,31 @@ public class RequestDAO extends BaseDAO<Deposit> {
     }
 
     private int getWalletIdByTx(int txId) {
-        Integer r = (Integer) queryScalar(
-            "SELECT wallet_id FROM TRANSACTION WHERE transaction_id = ?", txId);
-        return r != null ? r : -1;
+        String sql = "SELECT wallet_id FROM TRANSACTION WHERE transaction_id = ?";
+        try (Connection con = getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, txId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);  // getInt() luôn trả int, không cần cast
+            }
+        } catch (Exception e) {
+            System.err.println("RequestDAO.getWalletIdByTx: " + e);
+        }
+        return -1;
     }
 
     private BigDecimal getAmountByTx(int txId) {
-        return (BigDecimal) queryScalar(
-            "SELECT amount FROM TRANSACTION WHERE transaction_id = ?", txId);
+        String sql = "SELECT amount FROM TRANSACTION WHERE transaction_id = ?";
+        try (Connection con = getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, txId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getBigDecimal(1);  // getBigDecimal() an toàn với Oracle NUMBER
+            }
+        } catch (Exception e) {
+            System.err.println("RequestDAO.getAmountByTx: " + e);
+        }
+        return null;
     }
 
     private Object queryScalar(String sql, Object param) {
@@ -478,6 +482,7 @@ public class RequestDAO extends BaseDAO<Deposit> {
         }
         return null;
     }
+
 
     private Withdraw queryWithdraw(String sql, Object... params) {
         List<Withdraw> list = queryWithdraws(sql, params);

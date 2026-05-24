@@ -283,6 +283,30 @@ public class WalletDAO extends BaseDAO<Wallet> {
         }
     }
 
+    /** Lấy N giao dịch gần nhất của ví. */
+    public List<Transaction> getRecentTransactions(int walletId, int limit) {
+        String sql = """
+            SELECT * FROM (
+              SELECT * FROM TRANSACTION
+              WHERE wallet_id = ? AND is_deleted = 0
+              ORDER BY created_at DESC
+            ) WHERE ROWNUM <= ?
+            """;
+        return queryTransactions(sql, walletId, limit);
+    }
+
+    /** Toàn bộ giao dịch hệ thống, sắp xếp mới nhất trước. */
+    public List<Transaction> getAllTransactions() {
+        String sql = """
+            SELECT transaction_id, wallet_id, type_code, amount,
+                   status, created_at, is_deleted
+            FROM TRANSACTION
+            WHERE is_deleted = 0
+            ORDER BY created_at DESC
+            """;
+        return queryTransactions(sql);
+    }
+
     /** Helper để query danh sách Transaction (mapRow của BaseDAO ánh xạ Wallet, nên cần riêng). */
     private List<Transaction> queryTransactions(String sql, Object... params) {
         List<Transaction> list = new ArrayList<>();

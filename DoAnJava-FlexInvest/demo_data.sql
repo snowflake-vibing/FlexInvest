@@ -1,6 +1,5 @@
-SET DEFINE OFF;
 -- =============================================================================
--- FlexInvest — Demo Data Script (FIXED)
+-- FlexInvest — Demo Data Script
 -- Mục đích: Insert data mẫu cho buổi demo
 --
 -- Tài khoản demo:
@@ -14,9 +13,10 @@ SET DEFINE OFF;
 --   3. Script tự COMMIT ở cuối
 -- =============================================================================
 
+SET DEFINE OFF
+
 -- =============================================================================
 -- 0. Thêm cột payout_method và target_product_id vào INVESTMENT nếu chưa có
---    (phòng trường hợp chạy schema cũ chưa có 2 cột này)
 -- =============================================================================
 BEGIN
     EXECUTE IMMEDIATE 'ALTER TABLE INVESTMENT ADD (payout_method VARCHAR2(10), target_product_id NUMBER(10))';
@@ -31,26 +31,27 @@ END;
 -- =============================================================================
 -- 1. Xóa data cũ theo thứ tự FK (safe cho môi trường demo)
 -- =============================================================================
-DELETE FROM LEDGER              WHERE is_deleted IN (0,1);
-DELETE FROM PAYOUT              WHERE is_deleted IN (0,1);
+DELETE FROM LEDGER                 WHERE is_deleted IN (0,1);
+DELETE FROM PAYOUT                 WHERE is_deleted IN (0,1);
 DELETE FROM EARLY_REDEMPTION_EVENT WHERE is_deleted IN (0,1);
-DELETE FROM INVESTMENT          WHERE is_deleted IN (0,1);
-DELETE FROM DEPOSIT             WHERE is_deleted IN (0,1);
-DELETE FROM WITHDRAW            WHERE is_deleted IN (0,1);
-DELETE FROM "TRANSACTION"       WHERE is_deleted IN (0,1);
-DELETE FROM EKYC                WHERE is_deleted IN (0,1);
-DELETE FROM BANK_ACCOUNT        WHERE is_deleted IN (0,1);
-DELETE FROM WALLET              WHERE is_deleted IN (0,1);
-DELETE FROM ACCOUNT             WHERE is_deleted IN (0,1);
-DELETE FROM USERS               WHERE is_deleted IN (0,1);
-DELETE FROM SAVINGS_PRODUCT     WHERE is_deleted IN (0,1);
-DELETE FROM MISSIONS            WHERE is_deleted IN (0,1);
+DELETE FROM INVESTMENT             WHERE is_deleted IN (0,1);
+DELETE FROM DEPOSIT                WHERE is_deleted IN (0,1);
+DELETE FROM WITHDRAW               WHERE is_deleted IN (0,1);
+DELETE FROM "TRANSACTION"          WHERE is_deleted IN (0,1);
+DELETE FROM EKYC                   WHERE is_deleted IN (0,1);
+DELETE FROM BANK_ACCOUNT           WHERE is_deleted IN (0,1);
+DELETE FROM WALLET                 WHERE is_deleted IN (0,1);
+DELETE FROM ACCOUNT                WHERE is_deleted IN (0,1);
+DELETE FROM USERS                  WHERE is_deleted IN (0,1);
+DELETE FROM SAVINGS_PRODUCT        WHERE is_deleted IN (0,1);
+DELETE FROM MISSIONS               WHERE is_deleted IN (0,1);
+DELETE FROM SYS_ROLE;
+DELETE FROM SYS_FUNCTION;
 COMMIT;
 
 -- =============================================================================
 -- 2. USERS
---    role_id: 1=Admin, 2=Staff, 3=Customer (khớp với RegisterController role_id=3)
---    password lưu plaintext vì PasswordUtils.hash() trả về plaintext
+--    role_id: 1=Admin, 2=Staff, 3=Customer
 -- =============================================================================
 INSERT INTO USERS (role_id, email, password_hash, status, referral_code, created_at, is_deleted)
 VALUES (1, 'admin@flexinvest.vn', 'admin123', 'ACTIVE', 'ADMIN001', SYSDATE, 0);
@@ -92,37 +93,85 @@ SELECT user_id, 20000000, 0, 'ACTIVE', 0
 FROM USERS WHERE email = 'customer@flexinvest.vn';
 
 -- =============================================================================
--- 5. SAVINGS_PRODUCT (khớp InvestmentDAO.mapProduct: term=0 là Flex-Safe)
+-- 5. SYS_FUNCTION
 -- =============================================================================
-INSERT INTO SAVINGS_PRODUCT
-  (product_name, interest_rate, term, min_investment_amount, max_investment_amount,
-   penalty_rate, fallback_interest_rate, min_holding_days, status, currency, is_deleted)
-VALUES ('Flex-Safe Cơ Bản', 0.02, 0, 100000, NULL, 0, 0, 0, 'ACTIVE', 'VND', 0);
-
-INSERT INTO SAVINGS_PRODUCT
-  (product_name, interest_rate, term, min_investment_amount, max_investment_amount,
-   penalty_rate, fallback_interest_rate, min_holding_days, status, currency, is_deleted)
-VALUES ('Tiết Kiệm 1 Tháng', 0.04, 30, 1000000, 500000000, 0, 0, 15, 'ACTIVE', 'VND', 0);
-
-INSERT INTO SAVINGS_PRODUCT
-  (product_name, interest_rate, term, min_investment_amount, max_investment_amount,
-   penalty_rate, fallback_interest_rate, min_holding_days, status, currency, is_deleted)
-VALUES ('Tiết Kiệm 3 Tháng', 0.06, 90, 5000000, 1000000000, 0.01, 0, 30, 'ACTIVE', 'VND', 0);
-
-INSERT INTO SAVINGS_PRODUCT
-  (product_name, interest_rate, term, min_investment_amount, max_investment_amount,
-   penalty_rate, fallback_interest_rate, min_holding_days, status, currency, is_deleted)
-VALUES ('Tiết Kiệm 6 Tháng', 0.075, 180, 10000000, 2000000000, 0.02, 0, 60, 'ACTIVE', 'VND', 0);
-
-INSERT INTO SAVINGS_PRODUCT
-  (product_name, interest_rate, term, min_investment_amount, max_investment_amount,
-   penalty_rate, fallback_interest_rate, min_holding_days, status, currency, is_deleted)
-VALUES ('Flex VIP 12 Tháng', 0.12, 365, 50000000, NULL, 0.03, 0, 90, 'ACTIVE', 'VND', 0);
+INSERT INTO SYS_FUNCTION (NAME_FUNCTION) VALUES ('Quản lý người dùng');
+INSERT INTO SYS_FUNCTION (NAME_FUNCTION) VALUES ('Quản lý giao dịch');
+INSERT INTO SYS_FUNCTION (NAME_FUNCTION) VALUES ('Quản lý gói đầu tư');
+INSERT INTO SYS_FUNCTION (NAME_FUNCTION) VALUES ('Quản lý token & nhiệm vụ');
+INSERT INTO SYS_FUNCTION (NAME_FUNCTION) VALUES ('Báo cáo & thống kê');
+COMMIT;
 
 -- =============================================================================
--- 6. INVESTMENT
---    Dùng start_date (khớp InvestmentDAO.mapInvestment + insert SQL)
---    Dùng payout_method (khớp InvestmentDAO.setPayoutMethod/getPayoutMethod)
+-- 6. SYS_ROLE (5 vai trò, mỗi vai trò map 1 function đại diện)
+-- =============================================================================
+-- Admin: toàn quyền
+INSERT INTO SYS_ROLE (FUNCTION_ID, ADD_PERM, EDIT_PERM, DELETE_PERM, DOWNLOAD_PERM, VIEW_PERM)
+VALUES (1, 1, 1, 1, 1, 1);
+
+-- Manager: quản lý gói đầu tư + báo cáo
+INSERT INTO SYS_ROLE (FUNCTION_ID, ADD_PERM, EDIT_PERM, DELETE_PERM, DOWNLOAD_PERM, VIEW_PERM)
+VALUES (3, 1, 1, 0, 1, 1);
+
+-- Staff: quản lý người dùng, chỉ xem + sửa
+INSERT INTO SYS_ROLE (FUNCTION_ID, ADD_PERM, EDIT_PERM, DELETE_PERM, DOWNLOAD_PERM, VIEW_PERM)
+VALUES (1, 0, 1, 0, 0, 1);
+
+-- Accountant: quản lý giao dịch, xem + tải
+INSERT INTO SYS_ROLE (FUNCTION_ID, ADD_PERM, EDIT_PERM, DELETE_PERM, DOWNLOAD_PERM, VIEW_PERM)
+VALUES (2, 0, 0, 0, 1, 1);
+
+-- User (Member): chỉ xem thông tin của mình
+INSERT INTO SYS_ROLE (FUNCTION_ID, ADD_PERM, EDIT_PERM, DELETE_PERM, DOWNLOAD_PERM, VIEW_PERM)
+VALUES (1, 0, 0, 0, 0, 1);
+
+COMMIT;
+
+-- =============================================================================
+-- 7. SAVINGS_PRODUCT
+-- =============================================================================
+-- Gói không kỳ hạn (term = 0)
+INSERT INTO SAVINGS_PRODUCT (product_name, interest_rate, term, min_investment_amount, max_investment_amount, penalty_rate, fallback_interest_rate, min_holding_days, status, start_date, end_date, is_deleted)
+VALUES ('Flex-Safe', 0.0130, 0, 50000, 50000000, 0, 0, 0, 'ACTIVE', DATE '2024-01-01', NULL, 0);
+
+INSERT INTO SAVINGS_PRODUCT (product_name, interest_rate, term, min_investment_amount, max_investment_amount, penalty_rate, fallback_interest_rate, min_holding_days, currency, status, start_date, end_date, is_deleted)
+VALUES ('Flex-Safe-VIP', 0.0150, 0, 50000, 20000000, 0, 0, 0, 'FLEXTOKEN', 'ACTIVE', DATE '2024-01-01', NULL, 0);
+
+-- Gói có kỳ hạn (term tính theo ngày)
+-- interest_rate và fallback_interest_rate lưu dạng thập phân (0.0600 = 6%/năm)
+INSERT INTO SAVINGS_PRODUCT (product_name, interest_rate, term, min_investment_amount, max_investment_amount, penalty_rate, fallback_interest_rate, min_holding_days, status, start_date, end_date, is_deleted)
+VALUES ('Flex-1', 0.0600, 30, 50000, 10000000, 0, 0.0050, 1, 'ACTIVE', DATE '2024-01-01', NULL, 0);
+
+INSERT INTO SAVINGS_PRODUCT (product_name, interest_rate, term, min_investment_amount, max_investment_amount, penalty_rate, fallback_interest_rate, min_holding_days, status, start_date, end_date, is_deleted)
+VALUES ('Flex-3', 0.0650, 90, 50000, 10000000, 0, 0.0050, 1, 'ACTIVE', DATE '2024-01-01', NULL, 0);
+
+INSERT INTO SAVINGS_PRODUCT (product_name, interest_rate, term, min_investment_amount, max_investment_amount, penalty_rate, fallback_interest_rate, min_holding_days, status, start_date, end_date, is_deleted)
+VALUES ('Flex-6', 0.0690, 180, 50000, 20000000, 0, 0.0050, 1, 'ACTIVE', DATE '2024-01-01', NULL, 0);
+
+INSERT INTO SAVINGS_PRODUCT (product_name, interest_rate, term, min_investment_amount, max_investment_amount, penalty_rate, fallback_interest_rate, min_holding_days, status, start_date, end_date, is_deleted)
+VALUES ('Flex-9', 0.0730, 270, 50000, 20000000, 0, 0.0050, 1, 'ACTIVE', DATE '2024-01-01', NULL, 0);
+
+INSERT INTO SAVINGS_PRODUCT (product_name, interest_rate, term, min_investment_amount, max_investment_amount, penalty_rate, fallback_interest_rate, min_holding_days, status, start_date, end_date, is_deleted)
+VALUES ('Flex-12', 0.0780, 365, 50000, 20000000, 0, 0.0050, 1, 'ACTIVE', DATE '2024-01-01', NULL, 0);
+
+-- Gói VIP (chỉ dùng FlexToken)
+INSERT INTO SAVINGS_PRODUCT (product_name, interest_rate, term, min_investment_amount, max_investment_amount, penalty_rate, fallback_interest_rate, min_holding_days, currency, status, start_date, end_date, is_deleted)
+VALUES ('Flex-1-VIP', 0.0650, 30, 50000, 20000000, 0, 0.0050, 1, 'FLEXTOKEN', 'ACTIVE', DATE '2024-01-01', NULL, 0);
+
+INSERT INTO SAVINGS_PRODUCT (product_name, interest_rate, term, min_investment_amount, max_investment_amount, penalty_rate, fallback_interest_rate, min_holding_days, currency, status, start_date, end_date, is_deleted)
+VALUES ('Flex-6-VIP', 0.0750, 180, 50000, 20000000, 0, 0.0050, 1, 'FLEXTOKEN', 'ACTIVE', DATE '2024-01-01', NULL, 0);
+
+-- Gói đặc biệt (mở theo ngày cụ thể)
+INSERT INTO SAVINGS_PRODUCT (product_name, interest_rate, term, min_investment_amount, max_investment_amount, penalty_rate, fallback_interest_rate, min_holding_days, status, start_date, end_date, is_deleted)
+VALUES ('Flex-Sale', 0.0777, 30, 50000, 5000000, 0, 0.0050, 1, 'INACTIVE', NULL, NULL, 0);
+
+INSERT INTO SAVINGS_PRODUCT (product_name, interest_rate, term, min_investment_amount, max_investment_amount, penalty_rate, fallback_interest_rate, min_holding_days, status, start_date, end_date, is_deleted)
+VALUES ('Flex-Holiday', 0.0888, 30, 50000, 2500000, 0, 0.0050, 1, 'INACTIVE', NULL, NULL, 0);
+
+COMMIT;
+
+-- =============================================================================
+-- 8. INVESTMENT (tham chiếu product_name theo data.sql)
 -- =============================================================================
 
 -- [INV-1] ACTIVE, Flex-Safe, mua 10 ngày trước
@@ -131,41 +180,41 @@ INSERT INTO INVESTMENT
    start_date, maturity_date, status, payout_method, is_deleted)
 SELECT
   (SELECT user_id FROM USERS WHERE email = 'customer@flexinvest.vn'),
-  (SELECT product_id FROM SAVINGS_PRODUCT WHERE product_name = 'Flex-Safe Cơ Bản'),
-  5000000, 0.02,
+  (SELECT product_id FROM SAVINGS_PRODUCT WHERE product_name = 'Flex-Safe'),
+  5000000, 0.0130,
   SYSDATE - 10, NULL, 'ACTIVE', 'PT3', 0
 FROM DUAL;
 
--- [INV-2] ACTIVE, 1 tháng, sắp đáo hạn 2 ngày nữa
+-- [INV-2] ACTIVE, Flex-1, sắp đáo hạn 2 ngày nữa
 INSERT INTO INVESTMENT
   (user_id, product_id, invested_amount, applied_interest_rate,
    start_date, maturity_date, status, payout_method, is_deleted)
 SELECT
   (SELECT user_id FROM USERS WHERE email = 'customer@flexinvest.vn'),
-  (SELECT product_id FROM SAVINGS_PRODUCT WHERE product_name = 'Tiết Kiệm 1 Tháng'),
-  10000000, 0.04,
+  (SELECT product_id FROM SAVINGS_PRODUCT WHERE product_name = 'Flex-1'),
+  10000000, 0.0600,
   SYSDATE - 28, SYSDATE + 2, 'ACTIVE', 'PT3', 0
 FROM DUAL;
 
--- [INV-3] ACTIVE, 3 tháng, mới mua hôm qua
+-- [INV-3] ACTIVE, Flex-3, mới mua hôm qua
 INSERT INTO INVESTMENT
   (user_id, product_id, invested_amount, applied_interest_rate,
    start_date, maturity_date, status, payout_method, is_deleted)
 SELECT
   (SELECT user_id FROM USERS WHERE email = 'customer@flexinvest.vn'),
-  (SELECT product_id FROM SAVINGS_PRODUCT WHERE product_name = 'Tiết Kiệm 3 Tháng'),
-  3000000, 0.06,
+  (SELECT product_id FROM SAVINGS_PRODUCT WHERE product_name = 'Flex-3'),
+  3000000, 0.0650,
   SYSDATE - 1, SYSDATE + 89, 'ACTIVE', 'PT1', 0
 FROM DUAL;
 
--- [INV-4] ACTIVE, 3 tháng, mua 35 ngày trước
+-- [INV-4] ACTIVE, Flex-3, mua 35 ngày trước
 INSERT INTO INVESTMENT
   (user_id, product_id, invested_amount, applied_interest_rate,
    start_date, maturity_date, status, payout_method, is_deleted)
 SELECT
   (SELECT user_id FROM USERS WHERE email = 'customer@flexinvest.vn'),
-  (SELECT product_id FROM SAVINGS_PRODUCT WHERE product_name = 'Tiết Kiệm 3 Tháng'),
-  8000000, 0.06,
+  (SELECT product_id FROM SAVINGS_PRODUCT WHERE product_name = 'Flex-3'),
+  8000000, 0.0650,
   SYSDATE - 35, SYSDATE + 55, 'ACTIVE', 'PT2', 0
 FROM DUAL;
 
@@ -175,13 +224,13 @@ INSERT INTO INVESTMENT
    start_date, maturity_date, status, payout_method, is_deleted)
 SELECT
   (SELECT user_id FROM USERS WHERE email = 'customer@flexinvest.vn'),
-  (SELECT product_id FROM SAVINGS_PRODUCT WHERE product_name = 'Tiết Kiệm 1 Tháng'),
-  2000000, 0.04,
+  (SELECT product_id FROM SAVINGS_PRODUCT WHERE product_name = 'Flex-1'),
+  2000000, 0.0600,
   SYSDATE - 60, SYSDATE - 30, 'COMPLETED', 'PT3', 0
 FROM DUAL;
 
 -- =============================================================================
--- 7. eKYC — 1 hồ sơ PENDING để Staff duyệt
+-- 9. eKYC — 1 hồ sơ PENDING để Staff duyệt
 -- =============================================================================
 INSERT INTO EKYC
   (user_id, id_number, full_name, date_of_birth, gender,
@@ -199,7 +248,7 @@ SELECT
 FROM DUAL;
 
 -- =============================================================================
--- 8. BANK_ACCOUNT
+-- 10. BANK_ACCOUNT
 -- =============================================================================
 INSERT INTO BANK_ACCOUNT (user_id, bank_name, account_number, is_linked, is_deleted)
 SELECT user_id, 'Vietcombank', '1234567890', 1, 0
@@ -210,8 +259,8 @@ SELECT user_id, 'Techcombank', '0987654321', 1, 0
 FROM USERS WHERE email = 'staff@flexinvest.vn';
 
 -- =============================================================================
--- 9. TRANSACTION + DEPOSIT PENDING
---    Dùng "TRANSACTION" (có ngoặc kép) vì là reserved word Oracle
+-- 11. TRANSACTION + DEPOSIT PENDING
+--     Dùng "TRANSACTION" (có ngoặc kép) vì là reserved word Oracle
 -- =============================================================================
 
 -- Lệnh nạp PENDING #1 — 5 triệu
@@ -257,25 +306,86 @@ FROM (
 ) t WHERE ROWNUM = 1;
 
 -- =============================================================================
--- 10. MISSIONS — vài nhiệm vụ mẫu
+-- 12. MISSIONS
 -- =============================================================================
-INSERT INTO MISSIONS
-  (title, description, mission_type, action_type, target_value, reward_token,
-   is_active, sort_order, created_at, is_deleted)
-VALUES ('Đầu tư lần đầu', 'Thực hiện khoản đầu tư đầu tiên', 'ONE_TIME', 'INVEST',
-        1, 10, 1, 1, SYSDATE, 0);
+-- Điểm danh (DAILY) — 1 mission duy nhất theo đúng MissionDAO.getCheckInMission()
+-- Code dùng ROWNUM=1 + action_type='CHECKIN' (không có dấu gạch ngang)
+-- target_value=7 → streak 7 ngày; reward_token=5 được cộng mỗi ngày điểm danh
+INSERT INTO MISSIONS (title, description, mission_type, action_type, target_value, reward_token, is_active, sort_order, created_at, is_deleted)
+VALUES ('Chuỗi điểm danh 7 ngày', 'Điểm danh liên tiếp 7 ngày để hoàn thành chuỗi và nhận thưởng', 'DAILY', 'CHECKIN', 7, 5, 1, 0, SYSDATE, 0);
 
-INSERT INTO MISSIONS
-  (title, description, mission_type, action_type, target_value, reward_token,
-   is_active, sort_order, created_at, is_deleted)
-VALUES ('Nạp tiền 5 triệu', 'Nạp tổng cộng 5,000,000 VND', 'ONE_TIME', 'DEPOSIT',
-        5000000, 5, 1, 2, SYSDATE, 0);
+-- Hàng tuần (WEEKLY)
+INSERT INTO MISSIONS (title, description, mission_type, action_type, target_value, reward_token, is_active, sort_order, created_at, is_deleted)
+VALUES ('Chia sẻ ứng dụng', 'Chia sẻ FlexInvest lên mạng xã hội',                            'WEEKLY', 'SHARE_APP', 1,      50,   1, 1, SYSDATE, 0);
+INSERT INTO MISSIONS (title, description, mission_type, action_type, target_value, reward_token, is_active, sort_order, created_at, is_deleted)
+VALUES ('Nạp 100.000 VNĐ',  'Nạp ít nhất 100.000 VNĐ vào gói tích lũy trong tuần',           'WEEKLY', 'DEPOSIT',   100000, 100,  1, 2, SYSDATE, 0);
+INSERT INTO MISSIONS (title, description, mission_type, action_type, target_value, reward_token, is_active, sort_order, created_at, is_deleted)
+VALUES ('Nạp 500.000 VNĐ',  'Nạp ít nhất 500.000 VNĐ vào gói tích lũy trong tuần',           'WEEKLY', 'DEPOSIT',   500000, 750,  1, 3, SYSDATE, 0);
 
-INSERT INTO MISSIONS
-  (title, description, mission_type, action_type, target_value, reward_token,
-   is_active, sort_order, created_at, is_deleted)
-VALUES ('Giới thiệu bạn bè', 'Giới thiệu 1 người dùng mới', 'ONE_TIME', 'REFERRAL',
-        1, 20, 1, 3, SYSDATE, 0);
+-- Hàng tháng (MONTHLY)
+INSERT INTO MISSIONS (title, description, mission_type, action_type, target_value, reward_token, is_active, sort_order, created_at, is_deleted)
+VALUES ('Nạp tiền 10 ngày',      'Thực hiện nạp tiền ít nhất 10 ngày trong tháng',                      'MONTHLY', 'DEPOSIT_DAYS',    10,      1000, 1, 1, SYSDATE, 0);
+INSERT INTO MISSIONS (title, description, mission_type, action_type, target_value, reward_token, is_active, sort_order, created_at, is_deleted)
+VALUES ('Duy trì số dư 1 triệu', 'Duy trì số dư tích lũy cả tháng trên 1.000.000 VNĐ',                 'MONTHLY', 'MAINTAIN_BALANCE', 1000000, 1500, 1, 2, SYSDATE, 0);
+INSERT INTO MISSIONS (title, description, mission_type, action_type, target_value, reward_token, is_active, sort_order, created_at, is_deleted)
+VALUES ('Mời bạn mới',           'Mời thành công 1 bạn đã KYC và nạp ít nhất 50.000 VNĐ',              'MONTHLY', 'REFERRAL',         1,       2000, 1, 3, SYSDATE, 0);
+INSERT INTO MISSIONS (title, description, mission_type, action_type, target_value, reward_token, is_active, sort_order, created_at, is_deleted)
+VALUES ('Top 20 nạp tiền',       'Nằm trong top 20 người nạp tiền nhiều nhất trong tháng',              'MONTHLY', 'TOP_DEPOSIT',       20,      5000, 1, 4, SYSDATE, 0);
+
+-- =============================================================================
+-- 13. TOKEN WALLET (cần có để MissionPanel hiển thị số dư FlexToken)
+-- =============================================================================
+INSERT INTO TOKEN (user_id, balance, total_earned, status, is_deleted)
+SELECT user_id, 120, 120, 'ACTIVE', 0 FROM USERS WHERE email = 'admin@flexinvest.vn';
+
+INSERT INTO TOKEN (user_id, balance, total_earned, status, is_deleted)
+SELECT user_id, 75, 75, 'ACTIVE', 0 FROM USERS WHERE email = 'staff@flexinvest.vn';
+
+INSERT INTO TOKEN (user_id, balance, total_earned, status, is_deleted)
+SELECT user_id, 200, 200, 'ACTIVE', 0 FROM USERS WHERE email = 'customer@flexinvest.vn';
+
+-- =============================================================================
+-- 14. USER_MISSION — gán nhiệm vụ tuần/tháng cho customer để tab không trống
+-- =============================================================================
+-- Nhiệm vụ tuần: Chia sẻ ứng dụng (IN_PROGRESS)
+INSERT INTO USER_MISSION (user_id, mission_id, status, progress, is_deleted)
+SELECT
+  (SELECT user_id FROM USERS WHERE email = 'customer@flexinvest.vn'),
+  (SELECT mission_id FROM MISSIONS WHERE action_type = 'SHARE_APP' AND is_deleted = 0 AND ROWNUM = 1),
+  'IN_PROGRESS', 0, 0
+FROM DUAL;
+
+-- Nhiệm vụ tuần: Nạp 100.000 VNĐ (đã hoàn thành, chưa nhận)
+INSERT INTO USER_MISSION (user_id, mission_id, status, progress, completed_at, is_deleted)
+SELECT
+  (SELECT user_id FROM USERS WHERE email = 'customer@flexinvest.vn'),
+  (SELECT mission_id FROM MISSIONS WHERE action_type = 'DEPOSIT' AND mission_type = 'WEEKLY' AND target_value = 100000 AND is_deleted = 0 AND ROWNUM = 1),
+  'COMPLETED', 100000, SYSDATE - 1, 0
+FROM DUAL;
+
+-- Nhiệm vụ tuần: Nạp 500.000 VNĐ (đang tiến hành 60%)
+INSERT INTO USER_MISSION (user_id, mission_id, status, progress, is_deleted)
+SELECT
+  (SELECT user_id FROM USERS WHERE email = 'customer@flexinvest.vn'),
+  (SELECT mission_id FROM MISSIONS WHERE action_type = 'DEPOSIT' AND mission_type = 'WEEKLY' AND target_value = 500000 AND is_deleted = 0 AND ROWNUM = 1),
+  'IN_PROGRESS', 300000, 0
+FROM DUAL;
+
+-- Nhiệm vụ tháng: Nạp tiền 10 ngày (IN_PROGRESS — 3/10 ngày)
+INSERT INTO USER_MISSION (user_id, mission_id, status, progress, is_deleted)
+SELECT
+  (SELECT user_id FROM USERS WHERE email = 'customer@flexinvest.vn'),
+  (SELECT mission_id FROM MISSIONS WHERE action_type = 'DEPOSIT_DAYS' AND is_deleted = 0 AND ROWNUM = 1),
+  'IN_PROGRESS', 3, 0
+FROM DUAL;
+
+-- Nhiệm vụ tháng: Duy trì số dư 1 triệu (CLAIMED — đã nhận tháng trước)
+INSERT INTO USER_MISSION (user_id, mission_id, status, progress, completed_at, claimed_at, is_deleted)
+SELECT
+  (SELECT user_id FROM USERS WHERE email = 'customer@flexinvest.vn'),
+  (SELECT mission_id FROM MISSIONS WHERE action_type = 'MAINTAIN_BALANCE' AND is_deleted = 0 AND ROWNUM = 1),
+  'CLAIMED', 1000000, SYSDATE - 5, SYSDATE - 3, 0
+FROM DUAL;
 
 -- =============================================================================
 -- COMMIT tất cả
@@ -285,14 +395,18 @@ COMMIT;
 -- =============================================================================
 -- KIỂM TRA KẾT QUẢ
 -- =============================================================================
-SELECT 'USERS'          AS tbl, COUNT(*) AS cnt FROM USERS           WHERE is_deleted = 0
-UNION ALL SELECT 'ACCOUNT',           COUNT(*) FROM ACCOUNT          WHERE is_deleted = 0
-UNION ALL SELECT 'WALLET',            COUNT(*) FROM WALLET           WHERE is_deleted = 0
-UNION ALL SELECT 'SAVINGS_PRODUCT',   COUNT(*) FROM SAVINGS_PRODUCT  WHERE is_deleted = 0
-UNION ALL SELECT 'INVESTMENT',        COUNT(*) FROM INVESTMENT        WHERE is_deleted = 0
-UNION ALL SELECT 'EKYC',              COUNT(*) FROM EKYC             WHERE is_deleted = 0
-UNION ALL SELECT 'BANK_ACCOUNT',      COUNT(*) FROM BANK_ACCOUNT     WHERE is_deleted = 0
-UNION ALL SELECT 'DEPOSIT_PENDING',   COUNT(*) FROM DEPOSIT d
+SELECT 'USERS'            AS tbl, COUNT(*) AS cnt FROM USERS           WHERE is_deleted = 0
+UNION ALL SELECT 'ACCOUNT',             COUNT(*) FROM ACCOUNT          WHERE is_deleted = 0
+UNION ALL SELECT 'WALLET',              COUNT(*) FROM WALLET           WHERE is_deleted = 0
+UNION ALL SELECT 'SYS_FUNCTION',        COUNT(*) FROM SYS_FUNCTION
+UNION ALL SELECT 'SYS_ROLE',            COUNT(*) FROM SYS_ROLE
+UNION ALL SELECT 'SAVINGS_PRODUCT',     COUNT(*) FROM SAVINGS_PRODUCT  WHERE is_deleted = 0
+UNION ALL SELECT 'INVESTMENT',          COUNT(*) FROM INVESTMENT        WHERE is_deleted = 0
+UNION ALL SELECT 'EKYC',                COUNT(*) FROM EKYC             WHERE is_deleted = 0
+UNION ALL SELECT 'BANK_ACCOUNT',        COUNT(*) FROM BANK_ACCOUNT     WHERE is_deleted = 0
+UNION ALL SELECT 'DEPOSIT_PENDING',     COUNT(*) FROM DEPOSIT d
           JOIN "TRANSACTION" t ON d.transaction_id = t.transaction_id
           WHERE t.status = 'PENDING' AND d.is_deleted = 0
-UNION ALL SELECT 'MISSIONS',          COUNT(*) FROM MISSIONS         WHERE is_deleted = 0;
+UNION ALL SELECT 'MISSIONS',            COUNT(*) FROM MISSIONS         WHERE is_deleted = 0
+UNION ALL SELECT 'TOKEN',               COUNT(*) FROM TOKEN            WHERE is_deleted = 0
+UNION ALL SELECT 'USER_MISSION',        COUNT(*) FROM USER_MISSION     WHERE is_deleted = 0;

@@ -312,6 +312,38 @@ public class MissionDAO {
     }
 
     // ═══════════════════════════════════════════════════════════════════════
+    // PHẦN 4B: ADMIN ACTIONS
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /** Cập nhật số token thưởng cho mission. */
+    public boolean updateReward(int missionId, java.math.BigDecimal reward) {
+        String sql = "UPDATE MISSIONS SET reward_token = ? WHERE mission_id = ?";
+        try (Connection conn = ConnectionOracle.getOracleConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setBigDecimal(1, reward);
+            ps.setInt(2, missionId);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            System.err.println("[MissionDAO.updateReward] Lỗi: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /** Bật hoặc tắt mission (isActive = 1 hoặc 0). */
+    public boolean toggleActive(int missionId, int isActive) {
+        String sql = "UPDATE MISSIONS SET is_active = ? WHERE mission_id = ?";
+        try (Connection conn = ConnectionOracle.getOracleConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, isActive);
+            ps.setInt(2, missionId);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            System.err.println("[MissionDAO.toggleActive] Lỗi: " + e.getMessage());
+            return false;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     // PHẦN 5: CHECK-IN (QĐ13)
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -471,11 +503,9 @@ public class MissionDAO {
     }
 
     private Mission getCheckInMission() {
-        String sql = "SELECT * FROM (" +
-                     "  SELECT * FROM MISSIONS " +
-                     "  WHERE action_type = 'CHECKIN' AND is_active = 1 AND is_deleted = 0 " +
-                     "  ORDER BY mission_id DESC" +
-                     ") WHERE ROWNUM = 1";
+        String sql = "SELECT * FROM MISSIONS " +
+                     "WHERE action_type = 'CHECKIN' AND is_active = 1 AND is_deleted = 0 " +
+                     "AND ROWNUM = 1";
         try (Connection conn = ConnectionOracle.getOracleConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
@@ -542,4 +572,26 @@ public class MissionDAO {
     // PHẦN 8: TEST
     // ═══════════════════════════════════════════════════════════════════════
 
+    public static void main(String[] args) {
+        MissionDAO dao = new MissionDAO();
+        int testUserId = 1;
+
+        // Test 1: Lấy tất cả mission active
+        System.out.println("=== getAllActive ===");
+        dao.getAllActive().forEach(System.out::println);
+
+        // Test 2: Check-in ngày 1
+        System.out.println("\n=== checkIn lần 1 ===");
+        System.out.println("Kết quả: " + dao.checkIn(testUserId));
+        System.out.println("Streak hiện tại: " + dao.getCheckInStreak(testUserId));
+
+        // Test 3: Check-in lại cùng ngày (phải trả về false)
+        System.out.println("\n=== checkIn lần 2 cùng ngày (expect false) ===");
+        System.out.println("Kết quả: " + dao.checkIn(testUserId));
+
+        // Test 4: Lấy missions của user
+        System.out.println("\n=== getUserMissions ===");
+        dao.getUserMissions(testUserId).forEach(um ->
+            System.out.println(um + " | Mission: " + (um.getMission() != null ? um.getMission().getTitle() : "null")));
+    }
 }

@@ -127,4 +127,10 @@ public class BankAccountDAO {
         }
     }
 }
-
+
+//private int bankAccountId;
+//    private int userId;
+//    private String bankName;
+//    private String accountNumber;
+//    private int isLinked;
+//    private int isDeleted;

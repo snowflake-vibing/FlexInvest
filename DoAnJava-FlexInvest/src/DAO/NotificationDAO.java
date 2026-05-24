@@ -231,4 +231,28 @@ public class NotificationDAO {
     // PHẦN 6: TEST
     // ═══════════════════════════════════════════════════════════════════════
 
+    public static void main(String[] args) {
+        NotificationDAO dao = new NotificationDAO();
+        int testUserId = 1;
+
+        // Test 1: Gửi thông báo
+        System.out.println("=== Gửi thông báo ===");
+        System.out.println(dao.send(testUserId,
+                "Chào mừng bạn đến với FlexInvest!",
+                "Tài khoản của bạn đã được kích hoạt thành công.",
+                "SYSTEM"));
+
+        // Test 2: Đếm chưa đọc
+        System.out.println("\n=== Số thông báo chưa đọc ===");
+        System.out.println(dao.countUnread(testUserId));
+
+        // Test 3: Lấy danh sách
+        System.out.println("\n=== Danh sách thông báo ===");
+        dao.findByUserId(testUserId).forEach(System.out::println);
+
+        // Test 4: Đánh dấu tất cả đã đọc
+        System.out.println("\n=== Mark all read ===");
+        System.out.println("Đã cập nhật: " + dao.markAllRead(testUserId) + " bản ghi");
+        System.out.println("Còn chưa đọc: " + dao.countUnread(testUserId));
+    }
 }

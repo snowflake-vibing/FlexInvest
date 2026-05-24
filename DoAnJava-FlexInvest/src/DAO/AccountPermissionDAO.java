@@ -39,22 +39,17 @@ public class AccountPermissionDAO {
                    + "VALUES (?, ?, SYSDATE, SYSDATE, 0)";
         try (Connection con = ConnectionUtils.getMyConnection()) {
             con.setAutoCommit(false);
-            try {
-                try (PreparedStatement d = con.prepareStatement(del)) {
-                    d.setInt(1, accountId); d.executeUpdate();
-                }
-                try (PreparedStatement i = con.prepareStatement(ins)) {
-                    for (int roleId : roleIds) {
-                        i.setInt(1, accountId); i.setInt(2, roleId); i.addBatch();
-                    }
-                    i.executeBatch();
-                }
-                con.commit();
-                return true;
-            } catch (Exception ex) {
-                try { con.rollback(); } catch (Exception ignored) {}
-                throw ex;
+            try (PreparedStatement d = con.prepareStatement(del)) {
+                d.setInt(1, accountId); d.executeUpdate();
             }
+            try (PreparedStatement i = con.prepareStatement(ins)) {
+                for (int roleId : roleIds) {
+                    i.setInt(1, accountId); i.setInt(2, roleId); i.addBatch();
+                }
+                i.executeBatch();
+            }
+            con.commit();
+            return true;
         } catch (Exception e) {
             System.err.println("AccountPermissionDAO.saveDirectRoles: " + e);
             return false;
@@ -88,22 +83,17 @@ public class AccountPermissionDAO {
                    + "VALUES (?, ?, SYSDATE, SYSDATE, 0)";
         try (Connection con = ConnectionUtils.getMyConnection()) {
             con.setAutoCommit(false);
-            try {
-                try (PreparedStatement d = con.prepareStatement(del)) {
-                    d.setInt(1, accountId); d.executeUpdate();
-                }
-                try (PreparedStatement i = con.prepareStatement(ins)) {
-                    for (int gid : roleGroupIds) {
-                        i.setInt(1, accountId); i.setInt(2, gid); i.addBatch();
-                    }
-                    i.executeBatch();
-                }
-                con.commit();
-                return true;
-            } catch (Exception ex) {
-                try { con.rollback(); } catch (Exception ignored) {}
-                throw ex;
+            try (PreparedStatement d = con.prepareStatement(del)) {
+                d.setInt(1, accountId); d.executeUpdate();
             }
+            try (PreparedStatement i = con.prepareStatement(ins)) {
+                for (int gid : roleGroupIds) {
+                    i.setInt(1, accountId); i.setInt(2, gid); i.addBatch();
+                }
+                i.executeBatch();
+            }
+            con.commit();
+            return true;
         } catch (Exception e) {
             System.err.println("AccountPermissionDAO.saveRoleGroups: " + e);
             return false;

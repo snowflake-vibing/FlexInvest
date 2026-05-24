@@ -230,8 +230,8 @@ public class LoginForm extends JFrame {
                 // Fallback: gradient xanh đẹp nếu chưa có ảnh
                 Graphics2D g2d = (Graphics2D) g;
                 GradientPaint gp = new GradientPaint(
-                    0, 0, new Color(0, 120, 215),
-                    0, getHeight(), new Color(0, 60, 150));
+                    0, 0, new Color(245, 158, 11),
+                    0, getHeight(), new Color(120, 53, 15));
                 g2d.setPaint(gp);
                 g2d.fillRect(0, 0, getWidth(), getHeight());
 
@@ -342,7 +342,7 @@ public class LoginForm extends JFrame {
         b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         b.setFont(new Font("Segoe UI", Font.BOLD, 14));
         b.setBackground(bg);
-        b.setForeground(TEXT_DARK); // Chữ đen trên nền vàng cam
+        b.setForeground(Color.WHITE);
         b.putClientProperty("FlatLaf.style", "arc: 999; borderWidth: 0; focusWidth: 0;");
     }
 

@@ -13,11 +13,10 @@ import javax.swing.*;
 import javax.swing.border.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.sql.Connection;
+import DAO.EkycDAO;
 import java.text.NumberFormat;
 import java.util.List;
 import java.util.Locale;
-import ConnectDB.ConnectionOracle;
 
 /**
  * UserManagementPanel — Admin panel quản lý người dùng.
@@ -45,6 +44,7 @@ public class UserManagementPanel extends JPanel {
     private final UserDAO      userDAO   = new UserDAO();
     private final AccountDAO   accDAO    = new AccountDAO();
     private final WalletDAO    walletDAO = new WalletDAO();
+    private final EkycDAO      ekycDAO   = new EkycDAO();
 
     // ── Left panel controls ──────────────────────────────────────────────────
     private DefaultTableModel    tableModel;
@@ -290,25 +290,8 @@ public class UserManagementPanel extends JPanel {
         }
     }
 
-    /**
-     * Lấy trạng thái KYC của user.
-     * TODO: Chuyển query này sang EkycDAO hoặc UserDAO.
-     */
     private String getKycStatus(int userId) {
-        String status = "UNSUBMITTED";
-        try (Connection con = ConnectionOracle.getOracleConnection();
-             var ps = con.prepareStatement(
-                 "SELECT verified_status FROM (" +
-                 "  SELECT verified_status FROM EKYC WHERE user_id = ? AND is_deleted = 0" +
-                 "  ORDER BY created_at DESC" +
-                 ") WHERE ROWNUM = 1")) {
-            ps.setInt(1, userId);
-            var rs = ps.executeQuery();
-            if (rs.next()) status = rs.getString(1);
-        } catch (Exception e) {
-            System.err.println("[UserManagementPanel.getKycStatus] " + e.getMessage());
-        }
-        return status;
+        return ekycDAO.getKycStatusByUserId(userId);
     }
 
     private void showUserDetails() {
@@ -335,31 +318,18 @@ public class UserManagementPanel extends JPanel {
         btnToggleStatus.setText(active ? "Khóa Tài Khoản" : "Mở Khóa");
         btnToggleStatus.setBackground(active ? RED : GREEN);
 
-        // Load recent transactions
-        // TODO: Chuyển query này sang WalletDAO.getRecentTransactions(walletId, limit)
         historyTableModel.setRowCount(0);
         if (w != null) {
-            try (Connection con = ConnectionOracle.getOracleConnection();
-                 var ps = con.prepareStatement(
-                     "SELECT created_at, type_code, amount FROM (" +
-                     "  SELECT created_at, type_code, amount FROM TRANSACTION" +
-                     "  WHERE wallet_id = ? AND is_deleted = 0" +
-                     "  ORDER BY created_at DESC" +
-                     ") WHERE ROWNUM <= 5")) {
-                ps.setInt(1, w.getWalletId());
-                var rs = ps.executeQuery();
-                while (rs.next()) {
-                    historyTableModel.addRow(new Object[]{
-                        rs.getTimestamp(1),
-                        rs.getString(2),
-                        VND.format(rs.getBigDecimal(3)) + " đ"
-                    });
-                }
-                if (historyTableModel.getRowCount() == 0) {
-                    historyTableModel.addRow(new Object[]{"—", "Chưa có giao dịch", "—"});
-                }
-            } catch (Exception e) {
-                System.err.println("[UserManagementPanel.showUserDetails] " + e.getMessage());
+            var recentTx = walletDAO.getRecentTransactions(w.getWalletId(), 5);
+            for (var t : recentTx) {
+                historyTableModel.addRow(new Object[]{
+                    t.getCreatedAt(),
+                    t.getTypeCode(),
+                    VND.format(t.getAmount()) + " đ"
+                });
+            }
+            if (historyTableModel.getRowCount() == 0) {
+                historyTableModel.addRow(new Object[]{"—", "Chưa có giao dịch", "—"});
             }
         }
     }

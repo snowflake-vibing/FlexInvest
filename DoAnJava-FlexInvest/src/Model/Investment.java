@@ -17,8 +17,6 @@ public class Investment {
     private Date maturityDate;
     private String status;
     private int isDeleted;
-    private String payoutMethod;
-    private Integer targetProductId;
 
     public Investment() {
     }
@@ -108,22 +106,6 @@ public class Investment {
 
     public void setIsDeleted(int isDeleted) {
         this.isDeleted = isDeleted;
-    }
-
-    public String getPayoutMethod() {
-        return payoutMethod;
-    }
-
-    public void setPayoutMethod(String payoutMethod) {
-        this.payoutMethod = payoutMethod;
-    }
-
-    public Integer getTargetProductId() {
-        return targetProductId;
-    }
-
-    public void setTargetProductId(Integer targetProductId) {
-        this.targetProductId = targetProductId;
     }
 
     @Override

@@ -9,6 +9,8 @@ import java.util.List;
 public class UserDAO {
 
     private User mapRow(ResultSet rs) throws Exception {
+        String phone = null;
+        try { phone = rs.getString("PHONE"); } catch (Exception ignored) {}
         return new User(
             rs.getInt("USER_ID"),
             rs.getInt("ROLE_ID"),
@@ -17,6 +19,7 @@ public class UserDAO {
             rs.getTimestamp("CREATED_AT"),
             rs.getString("STATUS"),
             rs.getString("REFERRAL_CODE"),
+            phone,
             rs.getInt("IS_DELETED")
         );
     }
@@ -47,6 +50,19 @@ public class UserDAO {
             System.err.println("UserDAO.getUserByEmail: " + ex);
         }
         return null;
+    }
+
+    /** Đếm số user active (is_deleted=0). */
+    public int countActive() {
+        String sql = "SELECT COUNT(*) FROM USERS WHERE is_deleted = 0";
+        try (Connection con = ConnectionUtils.getMyConnection();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) return rs.getInt(1);
+        } catch (Exception ex) {
+            System.err.println("UserDAO.countActive: " + ex);
+        }
+        return 0;
     }
 
     public List<User> getAllUsers() {
@@ -85,7 +101,7 @@ public class UserDAO {
 
     public boolean updateUser(User user) {
         String sql = "UPDATE USERS SET ROLE_ID = ?, EMAIL = ?, PASSWORD_HASH = ?, "
-                   + "STATUS = ?, REFERRAL_CODE = ? WHERE USER_ID = ? AND IS_DELETED = 0";
+                   + "STATUS = ?, REFERRAL_CODE = ?, PHONE = ? WHERE USER_ID = ? AND IS_DELETED = 0";
         try (Connection con = ConnectionUtils.getMyConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, user.getRoleId());
@@ -93,7 +109,8 @@ public class UserDAO {
             ps.setString(3, user.getPasswordHash());
             ps.setString(4, user.getStatus());
             ps.setString(5, user.getReferralCode());
-            ps.setInt(6, user.getUserId());
+            ps.setString(6, user.getPhone());
+            ps.setInt(7, user.getUserId());
             return ps.executeUpdate() > 0;
         } catch (Exception ex) {
             System.err.println("UserDAO.updateUser: " + ex);
