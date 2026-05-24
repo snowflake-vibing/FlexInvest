@@ -88,11 +88,7 @@ public class InvestmentDAO {
 
     /** Lấy gói Flex-Safe (term=0, ACTIVE) — dùng cho rollover mặc định QĐ9. */
     public SavingsProduct getFlexSafeProduct() {
-        String sql = "SELECT * FROM (" +
-                     "    SELECT * FROM SAVINGS_PRODUCT " +
-                     "    WHERE term = 0 AND status = 'ACTIVE' AND is_deleted = 0 " +
-                     "    ORDER BY product_id DESC" +
-                     ") WHERE ROWNUM = 1";
+        String sql = "SELECT * FROM SAVINGS_PRODUCT WHERE term = 0 AND status = 'ACTIVE' AND is_deleted = 0 AND ROWNUM = 1";
         try (Connection con = ConnectionOracle.getOracleConnection();
              PreparedStatement ps = con.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
@@ -101,6 +97,32 @@ public class InvestmentDAO {
             System.err.println("[InvestmentDAO.getFlexSafeProduct] " + e.getMessage());
         }
         return null;
+    }
+
+    /** Tổng số tiền đang đầu tư (status=ACTIVE). */
+    public BigDecimal getTotalActiveInvestedAmount() {
+        String sql = "SELECT NVL(SUM(invested_amount), 0) FROM INVESTMENT WHERE status = 'ACTIVE' AND is_deleted = 0";
+        try (Connection con = ConnectionOracle.getOracleConnection();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) return rs.getBigDecimal(1);
+        } catch (Exception e) {
+            System.err.println("[InvestmentDAO.getTotalActiveInvestedAmount] " + e.getMessage());
+        }
+        return BigDecimal.ZERO;
+    }
+
+    /** Tổng lãi đã trả (payout_type=INTEREST). */
+    public BigDecimal getTotalInterestPaid() {
+        String sql = "SELECT NVL(SUM(payout_amount), 0) FROM PAYOUT WHERE payout_type = 'INTEREST' AND is_deleted = 0";
+        try (Connection con = ConnectionOracle.getOracleConnection();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) return rs.getBigDecimal(1);
+        } catch (Exception e) {
+            System.err.println("[InvestmentDAO.getTotalInterestPaid] " + e.getMessage());
+        }
+        return BigDecimal.ZERO;
     }
 
     public List<SavingsProduct> getAllActiveProducts() {

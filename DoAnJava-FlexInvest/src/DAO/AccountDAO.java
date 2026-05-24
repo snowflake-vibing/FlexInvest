@@ -107,6 +107,21 @@ public class AccountDAO {
         }
     }
 
+    public boolean updatePassword(int accountId, String newPasswordPlain) {
+        String hash = Utils.PasswordUtils.hash(newPasswordPlain);
+        String sql = "UPDATE ACCOUNT SET PASSWORD_HASH = ?, UPDATED_AT = SYSDATE "
+                   + "WHERE ACCOUNT_ID = ? AND IS_DELETED = 0";
+        try (Connection con = ConnectionUtils.getMyConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, hash);
+            ps.setInt(2, accountId);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            System.err.println("AccountDAO.updatePassword: " + e);
+            return false;
+        }
+    }
+
     public boolean softDelete(int accountId) {
         String sql = "UPDATE ACCOUNT SET IS_DELETED = 1, UPDATED_AT = SYSDATE "
                    + "WHERE ACCOUNT_ID = ?";

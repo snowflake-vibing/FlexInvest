@@ -193,35 +193,8 @@ public class MissionManagementPanel extends JPanel {
         }.execute();
     }
 
-    /**
-     * Query top N user theo TOKEN.balance DESC.
-     * TODO: Chuyển sang TokenDAO.getLeaderboard(limit)
-     */
     private List<int[]> queryTokenLeaderboard(int limit) {
-        List<int[]> result = new ArrayList<>();
-        String sql = """
-            SELECT t.user_id, t.balance, t.total_earned
-            FROM TOKEN t
-            WHERE t.is_deleted = 0 AND t.status = 'ACTIVE'
-            ORDER BY t.balance DESC
-            FETCH FIRST ? ROWS ONLY
-            """;
-        try (var con = ConnectDB.ConnectionOracle.getOracleConnection();
-             var ps = con.prepareStatement(sql)) {
-            ps.setInt(1, limit);
-            try (var rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    result.add(new int[]{
-                        rs.getInt("user_id"),
-                        rs.getBigDecimal("balance").intValue(),
-                        rs.getBigDecimal("total_earned").intValue()
-                    });
-                }
-            }
-        } catch (Exception e) {
-            System.err.println("[MissionManagementPanel.queryTokenLeaderboard] " + e.getMessage());
-        }
-        return result;
+        return tokenDAO.getLeaderboard(limit);
     }
 
     // =========================================================================
@@ -242,28 +215,13 @@ public class MissionManagementPanel extends JPanel {
         try { newReward = new BigDecimal(input.trim()); }
         catch (NumberFormatException e) { warn("Số không hợp lệ!"); return; }
 
-        // TODO: Chuyển sang MissionDAO.updateReward(missionId, reward)
-        boolean ok = updateMissionReward(m.getMissionId(), newReward);
+        boolean ok = missionDAO.updateReward(m.getMissionId(), newReward);
         if (ok) {
             m.setRewardToken(newReward);
             missionModel.fireTableDataChanged();
             JOptionPane.showMessageDialog(this, "Đã cập nhật thưởng thành " + newReward + " Token!");
         } else {
             JOptionPane.showMessageDialog(this, "Cập nhật thất bại!", "Lỗi", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    /** TODO: Chuyển sang MissionDAO.updateReward(missionId, reward) */
-    private boolean updateMissionReward(int missionId, BigDecimal reward) {
-        String sql = "UPDATE MISSIONS SET reward_token = ? WHERE mission_id = ?";
-        try (var con = ConnectDB.ConnectionOracle.getOracleConnection();
-             var ps = con.prepareStatement(sql)) {
-            ps.setBigDecimal(1, reward);
-            ps.setInt(2, missionId);
-            return ps.executeUpdate() > 0;
-        } catch (Exception e) {
-            System.err.println("[MissionManagementPanel.updateMissionReward] " + e.getMessage());
-            return false;
         }
     }
 
@@ -279,27 +237,12 @@ public class MissionManagementPanel extends JPanel {
             "Xác nhận", JOptionPane.YES_NO_OPTION);
         if (confirm != JOptionPane.YES_OPTION) return;
 
-        // TODO: Chuyển sang MissionDAO.toggleActive(missionId, isActive)
-        boolean ok = toggleMissionActive(m.getMissionId(), newState);
+        boolean ok = missionDAO.toggleActive(m.getMissionId(), newState);
         if (ok) {
             m.setIsActive(newState);
             missionModel.fireTableDataChanged();
         } else {
             JOptionPane.showMessageDialog(this, "Cập nhật thất bại!", "Lỗi", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    /** TODO: Chuyển sang MissionDAO.toggleActive(missionId, isActive) */
-    private boolean toggleMissionActive(int missionId, int isActive) {
-        String sql = "UPDATE MISSIONS SET is_active = ? WHERE mission_id = ?";
-        try (var con = ConnectDB.ConnectionOracle.getOracleConnection();
-             var ps = con.prepareStatement(sql)) {
-            ps.setInt(1, isActive);
-            ps.setInt(2, missionId);
-            return ps.executeUpdate() > 0;
-        } catch (Exception e) {
-            System.err.println("[MissionManagementPanel.toggleMissionActive] " + e.getMessage());
-            return false;
         }
     }
 

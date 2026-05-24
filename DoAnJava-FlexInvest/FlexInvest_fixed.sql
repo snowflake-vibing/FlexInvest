@@ -1,4 +1,3 @@
-SET DEFINE OFF;
 -- ============================================================
 -- FlexInvest — DDL Schema Script (FIXED)
 -- Oracle Database
@@ -11,7 +10,7 @@ SET DEFINE OFF;
 --   5. Admin seed dùng email nhất quán: admin@flexinvest.vn
 -- ============================================================
 
-ALTER SESSION SET CURRENT_SCHEMA = AdminFI;
+ALTER SESSION SET CURRENT_SCHEMA = FlexInvest;
 
 -- 1. ROLES
 CREATE TABLE ROLES (
@@ -31,9 +30,12 @@ CREATE TABLE USERS (
     created_at    TIMESTAMP      DEFAULT SYSTIMESTAMP NOT NULL,
     status        VARCHAR2(50)   DEFAULT 'ACTIVE' NOT NULL,
     referral_code VARCHAR2(50)   UNIQUE,
+    phone         VARCHAR2(20),
     is_deleted    NUMBER(1)      DEFAULT 0 NOT NULL CHECK (is_deleted IN (0,1)),
     CONSTRAINT fk_users_role FOREIGN KEY (role_id) REFERENCES ROLES(role_id)
 );
+-- Nếu DB đã tồn tại, chạy dòng sau để thêm cột:
+-- ALTER TABLE USERS ADD phone VARCHAR2(20);
 
 -- 3. EKYC
 CREATE TABLE EKYC (
@@ -110,7 +112,15 @@ CREATE TABLE BANK_ACCOUNT (
     CONSTRAINT fk_bank_user FOREIGN KEY (user_id) REFERENCES USERS(user_id)
 );
 
--- 8. TRANSACTION (dùng ngoặc kép vì là reserved word trong Oracle)
+-- 8. TRANSACTION_TYPE
+CREATE TABLE TRANSACTION_TYPE (
+    type_code   VARCHAR2(50)  PRIMARY KEY,
+    type_name   VARCHAR2(200) NOT NULL,
+    description VARCHAR2(500),
+    is_deleted  NUMBER(1)     DEFAULT 0 NOT NULL CHECK (is_deleted IN (0,1))
+);
+
+-- 9. TRANSACTION (dùng ngoặc kép vì là reserved word trong Oracle)
 CREATE TABLE "TRANSACTION" (
     transaction_id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     wallet_id      NUMBER         NOT NULL,
@@ -119,7 +129,8 @@ CREATE TABLE "TRANSACTION" (
     status         VARCHAR2(50)   DEFAULT 'PENDING' NOT NULL,
     created_at     TIMESTAMP      DEFAULT SYSTIMESTAMP NOT NULL,
     is_deleted     NUMBER(1)      DEFAULT 0 NOT NULL CHECK (is_deleted IN (0,1)),
-    CONSTRAINT fk_txn_wallet FOREIGN KEY (wallet_id)  REFERENCES WALLET(wallet_id)
+    CONSTRAINT fk_txn_wallet FOREIGN KEY (wallet_id)  REFERENCES WALLET(wallet_id),
+    CONSTRAINT fk_txn_type   FOREIGN KEY (type_code)  REFERENCES TRANSACTION_TYPE(type_code)
 );
 
 -- 10. DEPOSIT
@@ -474,6 +485,13 @@ INSERT INTO ROLES (role_name, description) VALUES ('Staff',    'Nhân viên xử
 INSERT INTO ROLES (role_name, description) VALUES ('Customer', 'Khách hàng đầu tư');
 COMMIT;
 
+-- TRANSACTION_TYPE
+INSERT INTO TRANSACTION_TYPE (type_code, type_name, description) VALUES ('DEPOSIT',    'Nạp tiền',     'Giao dịch nạp tiền vào ví');
+INSERT INTO TRANSACTION_TYPE (type_code, type_name, description) VALUES ('WITHDRAW',   'Rút tiền',     'Giao dịch rút tiền khỏi ví');
+INSERT INTO TRANSACTION_TYPE (type_code, type_name, description) VALUES ('INVEST',     'Đầu tư',       'Khóa tiền vào sản phẩm đầu tư');
+INSERT INTO TRANSACTION_TYPE (type_code, type_name, description) VALUES ('PAYOUT',     'Tất toán',     'Nhận lãi / gốc khi đáo hạn');
+INSERT INTO TRANSACTION_TYPE (type_code, type_name, description) VALUES ('EARLY_REDM', 'Tất toán sớm', 'Tất toán trước hạn, áp phạt');
+INSERT INTO TRANSACTION_TYPE (type_code, type_name, description) VALUES ('BONUS',      'Thưởng',       'Thưởng từ giới thiệu / nhiệm vụ');
 COMMIT;
 
 -- SYS_FUNCTION (FUNCTION_ID 1-5, khớp LoginController.FUNCTION_IDS = {1,2,3,4,5})

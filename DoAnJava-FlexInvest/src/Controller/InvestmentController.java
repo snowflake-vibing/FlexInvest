@@ -262,8 +262,10 @@ public class InvestmentController {
      * @return số lượng Investment đã được cộng lãi
      */
     public int dailyFlexSafeAccrual(int flexSafeProductId) {
-        // Tỉ lệ cộng lãi ngày QĐ5: ≈ 4.75% / năm ÷ 365
-        final BigDecimal DAILY_RATE = new BigDecimal("0.00013");
+        SavingsProduct product = invDAO.getProductById(flexSafeProductId);
+        if (product == null) return 0;
+        BigDecimal DAILY_RATE = product.getInterestRate()
+                                       .divide(BigDecimal.valueOf(365), 10, RoundingMode.HALF_UP);
 
         List<Investment> activeList = invDAO.getActiveByProductId(flexSafeProductId);
         int count = 0;
@@ -557,27 +559,8 @@ public class InvestmentController {
             try (var rs = ps.executeQuery()) {
                 if (rs.next()) {
                     Ekyc e = new Ekyc();
-                    e.setKycId(rs.getInt("KYC_ID"));
-                    e.setUserId(rs.getInt("USER_ID"));
-                    e.setIdNumber(rs.getString("ID_NUMBER"));
-                    e.setFullName(rs.getString("FULL_NAME"));
-                    e.setDateOfBirth(rs.getDate("DATE_OF_BIRTH"));
-                    e.setGender(rs.getString("GENDER"));
-                    e.setPlaceOfOrigin(rs.getString("PLACE_OF_ORIGIN"));
-                    e.setPlaceOfResidence(rs.getString("PLACE_OF_RESIDENCE"));
-                    e.setIssueDate(rs.getDate("ISSUE_DATE"));
-                    e.setExpiryDate(rs.getDate("EXPIRY_DATE"));
-                    e.setIssuePlace(rs.getString("ISSUE_PLACE"));
-                    e.setFrontImageUrl(rs.getString("FRONT_IMAGE_URL"));
-                    e.setBackImageUrl(rs.getString("BACK_IMAGE_URL"));
-                    e.setFaceImageUrl(rs.getString("FACE_IMAGE_URL"));
-                    e.setMatchScore(rs.getBigDecimal("MATCH_SCORE"));
-                    e.setVerifiedStatus(rs.getString("VERIFIED_STATUS"));
-                    e.setNote(rs.getString("NOTE"));
-                    e.setVerifiedAt(rs.getTimestamp("VERIFIED_AT"));
-                    e.setCreatedAt(rs.getTimestamp("CREATED_AT"));
-                    e.setUpdatedAt(rs.getTimestamp("UPDATED_AT"));
-                    e.setIsDeleted(rs.getInt("IS_DELETED"));
+                    e.setUserId(userId);
+                    e.setVerifiedStatus("APPROVED");
                     return e;
                 }
             }

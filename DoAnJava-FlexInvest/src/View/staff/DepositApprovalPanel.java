@@ -181,17 +181,29 @@ public class DepositApprovalPanel extends JPanel {
                 try {
                     WalletController.Result r = get();
                     if (r == WalletController.Result.SUCCESS) {
+                        // Xoá dòng ngay lập tức (optimistic removal) — không đợi loadData() async
+                        tableModel.removeByDepositId(d.getDepositId());
+                        if (deposits != null) deposits.removeIf(dep -> dep.getDepositId() == d.getDepositId());
                         JOptionPane.showMessageDialog(DepositApprovalPanel.this,
                             "Đã duyệt lệnh nạp #" + d.getDepositId()
                             + "\nTiền đã được cộng vào ví khách hàng.",
                             "Duyệt thành công", JOptionPane.INFORMATION_MESSAGE);
                     } else {
                         JOptionPane.showMessageDialog(DepositApprovalPanel.this,
-                            "Lỗi: " + r, "Duyệt thất bại", JOptionPane.ERROR_MESSAGE);
+                            "Duyệt thất bại: " + r
+                            + "\nVui lòng kiểm tra log hoặc thử lại.",
+                            "Duyệt thất bại", JOptionPane.ERROR_MESSAGE);
                     }
-                } catch (Exception ex) { ex.printStackTrace(); }
-                finally { loadData(); }
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    // Hiện dialog lỗi rõ ràng thay vì im lặng
+                    JOptionPane.showMessageDialog(DepositApprovalPanel.this,
+                        "Lỗi hệ thống khi duyệt:\n" + ex.getCause(),
+                        "Lỗi", JOptionPane.ERROR_MESSAGE);
+                }
+                finally { loadData(); }  // đồng bộ lại với DB
             }
+
         }.execute();
     }
 
@@ -243,10 +255,21 @@ public class DepositApprovalPanel extends JPanel {
         private Map<Integer, Integer>    uidMap  = new HashMap<>();
 
         void setData(List<Deposit> d, Map<Integer, BigDecimal> amt, Map<Integer, Integer> uid) {
-            this.rows   = d;
+            this.rows   = new ArrayList<>(d);  // bản sao để tránh race condition
             this.amtMap = amt;
             this.uidMap = uid;
             fireTableDataChanged();
+        }
+
+        /** Xoá ngay dòng có depositId khỏi bảng (optimistic removal). */
+        void removeByDepositId(int depositId) {
+            for (int i = 0; i < rows.size(); i++) {
+                if (rows.get(i).getDepositId() == depositId) {
+                    rows.remove(i);
+                    fireTableRowsDeleted(i, i);
+                    return;
+                }
+            }
         }
 
         @Override public int getRowCount()    { return rows.size(); }

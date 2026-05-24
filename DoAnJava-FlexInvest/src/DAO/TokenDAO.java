@@ -6,6 +6,8 @@ import Model.Token;
 import java.math.BigDecimal;
 import java.sql.*;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * DAO quản lý bảng TOKEN.
@@ -176,6 +178,39 @@ public class TokenDAO {
         }
     }
 
+    // ── Leaderboard ─────────────────────────────────────────────────────────
+
+    /**
+     * Top N user theo số dư token giảm dần.
+     * @return List of int[]{user_id, balance, total_earned}
+     */
+    public List<int[]> getLeaderboard(int limit) {
+        List<int[]> result = new ArrayList<>();
+        String sql = """
+            SELECT user_id, balance, total_earned
+            FROM TOKEN
+            WHERE is_deleted = 0 AND status = 'ACTIVE'
+            ORDER BY balance DESC
+            FETCH FIRST ? ROWS ONLY
+            """;
+        try (Connection conn = ConnectionOracle.getOracleConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    result.add(new int[]{
+                        rs.getInt("user_id"),
+                        rs.getBigDecimal("balance").intValue(),
+                        rs.getBigDecimal("total_earned").intValue()
+                    });
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[TokenDAO.getLeaderboard] Lỗi: " + e.getMessage());
+        }
+        return result;
+    }
+
     // ── Mapping ─────────────────────────────────────────────────────────────
 
     private Token mapRow(ResultSet rs) throws SQLException {
@@ -192,4 +227,21 @@ public class TokenDAO {
 
     // ── Test nhanh ───────────────────────────────────────────────────────────
 
+    public static void main(String[] args) {
+        TokenDAO dao = new TokenDAO();
+        int testUserId = 1;
+
+        // Test tạo ví
+        System.out.println("Tạo ví: " + dao.createWalletIfNotExists(testUserId));
+
+        // Test cộng token
+        System.out.println("Cộng 50 token: " + dao.addToken(testUserId, new BigDecimal("50")));
+
+        // Test lấy số dư
+        System.out.println("Số dư: " + dao.getBalance(testUserId));
+
+        // Test trừ
+        System.out.println("Trừ 20 token: " + dao.deductToken(testUserId, new BigDecimal("20")));
+        System.out.println("Số dư sau trừ: " + dao.getBalance(testUserId));
+    }
 }

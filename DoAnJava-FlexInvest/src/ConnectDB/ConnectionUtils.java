@@ -13,4 +13,10 @@ public class ConnectionUtils {
     public static Connection getMyConnection() throws ClassNotFoundException, SQLException {
         return ConnectionOracle.getOracleConnection();
     }
+    public static void main(String[] args) throws ClassNotFoundException, SQLException {
+        System.out.println("Get connection ...");
+        Connection conn = ConnectionUtils.getMyConnection();
+        System.out.println("Get connection " + conn);
+        System.out.println("Thành công.");
+    }
 }

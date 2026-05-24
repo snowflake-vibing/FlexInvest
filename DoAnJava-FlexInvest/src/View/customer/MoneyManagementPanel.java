@@ -59,6 +59,10 @@ public class MoneyManagementPanel extends JPanel {
     private DefaultListModel<String> bankListModel;
     private List<BankAccount>       bankListFull;
 
+    // ── Tabs (field để switch từ bên trong) ───────────────────────────────────
+    private JTabbedPane             tabs;
+    private JPanel                  noBankPanel;
+
     public MoneyManagementPanel(AccountModel account) {
         this.account = account;
         this.userId  = account.getUser().getUserId();
@@ -89,7 +93,7 @@ public class MoneyManagementPanel extends JPanel {
         inner.add(header, BorderLayout.NORTH);
 
         // Tabs
-        JTabbedPane tabs = new JTabbedPane(JTabbedPane.TOP);
+        tabs = new JTabbedPane(JTabbedPane.TOP);
         tabs.setFont(new Font("Segoe UI", Font.BOLD, 13));
         tabs.setBackground(CARD);
         tabs.addTab("  Nạp tiền",   buildDepositTab());
@@ -126,18 +130,6 @@ public class MoneyManagementPanel extends JPanel {
         styleField(txtDepositAmount);
         txtDepositAmount.setToolTipText("Tối thiểu 10,000 VNĐ");
         p.add(txtDepositAmount);
-        p.add(Box.createVerticalStrut(8));
-
-        // Quick amounts
-        JPanel quick = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        quick.setOpaque(false);
-        quick.setAlignmentX(LEFT_ALIGNMENT);
-        for (String amt : new String[]{"100,000", "500,000", "1,000,000", "5,000,000"}) {
-            JButton btn = quickBtn(amt);
-            btn.addActionListener(e -> txtDepositAmount.setText(amt.replace(",", "")));
-            quick.add(btn);
-        }
-        p.add(quick);
         p.add(Box.createVerticalStrut(24));
 
         // Nút nạp
@@ -170,18 +162,41 @@ public class MoneyManagementPanel extends JPanel {
         p.add(txtWithdrawAmount);
         p.add(Box.createVerticalStrut(16));
 
+        // Panel hiện khi chưa có tài khoản NH
+        noBankPanel = new JPanel();
+        noBankPanel.setLayout(new BoxLayout(noBankPanel, BoxLayout.Y_AXIS));
+        noBankPanel.setOpaque(false);
+        noBankPanel.setAlignmentX(LEFT_ALIGNMENT);
+
+        JLabel noAccLbl = new JLabel("⚠  Bạn chưa liên kết tài khoản ngân hàng nào.");
+        noAccLbl.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        noAccLbl.setForeground(RED);
+        noAccLbl.setAlignmentX(LEFT_ALIGNMENT);
+
+        JButton btnGoBank = new JButton("→  Thêm tài khoản ngân hàng ngay");
+        btnGoBank.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        btnGoBank.setBackground(BLUE);
+        btnGoBank.setForeground(Color.WHITE);
+        btnGoBank.setFocusPainted(false);
+        btnGoBank.setBorderPainted(false);
+        btnGoBank.setOpaque(true);
+        btnGoBank.setAlignmentX(LEFT_ALIGNMENT);
+        btnGoBank.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btnGoBank.addActionListener(e -> {
+            if (tabs != null) tabs.setSelectedIndex(2);
+        });
+
+        noBankPanel.add(noAccLbl);
+        noBankPanel.add(Box.createVerticalStrut(10));
+        noBankPanel.add(btnGoBank);
+        p.add(noBankPanel);
+        p.add(Box.createVerticalStrut(16));
+
         p.add(fieldLabel("Tài khoản ngân hàng nhận"));
         p.add(Box.createVerticalStrut(6));
         cbBankAccounts = new JComboBox<>();
         styleCombo(cbBankAccounts);
         p.add(cbBankAccounts);
-        p.add(Box.createVerticalStrut(6));
-
-        JLabel hintBank = new JLabel("Chưa có tài khoản? Thêm tại tab 'Tài khoản NH'.");
-        hintBank.setFont(new Font("Segoe UI", Font.ITALIC, 11));
-        hintBank.setForeground(MUTED);
-        hintBank.setAlignmentX(LEFT_ALIGNMENT);
-        p.add(hintBank);
         p.add(Box.createVerticalStrut(24));
 
         JButton btnWithdraw = actionBtn("Tạo lệnh rút", new Color(245, 158, 11));
@@ -261,13 +276,61 @@ public class MoneyManagementPanel extends JPanel {
 
         int depositId = walletCtrl.requestDeposit(userId, amount, gw, gw + "_ACCOUNT", 60);
         if (depositId > 0) {
-            JOptionPane.showMessageDialog(this,
-                String.format("<html>Tạo lệnh nạp thành công!<br/>" +
-                    "Mã lệnh: <b>#%d</b><br/>Số tiền: <b>%s VNĐ</b><br/>" +
-                    "Phương thức: <b>%s</b><br/><br/>" +
-                    "Vui lòng chuyển khoản và chờ nhân viên xác nhận.</html>",
-                    depositId, VND.format(amount), gw),
-                "Nạp tiền thành công", JOptionPane.INFORMATION_MESSAGE);
+            String transferNote = "NAP" + depositId;
+            JPanel dlgPanel = new JPanel();
+            dlgPanel.setLayout(new BoxLayout(dlgPanel, BoxLayout.Y_AXIS));
+            dlgPanel.setBorder(new EmptyBorder(8, 8, 8, 8));
+
+            JLabel title = new JLabel("✅  Tạo lệnh nạp thành công — Mã #" + depositId);
+            title.setFont(new Font("Segoe UI", Font.BOLD, 14));
+            title.setForeground(new Color(16, 185, 129));
+            title.setAlignmentX(LEFT_ALIGNMENT);
+            dlgPanel.add(title);
+            dlgPanel.add(Box.createVerticalStrut(14));
+
+            JLabel instr = new JLabel("Vui lòng chuyển khoản theo thông tin sau:");
+            instr.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+            instr.setAlignmentX(LEFT_ALIGNMENT);
+            dlgPanel.add(instr);
+            dlgPanel.add(Box.createVerticalStrut(10));
+
+            JPanel infoBox = new JPanel(new GridLayout(4, 2, 8, 8));
+            infoBox.setBackground(new Color(245, 248, 255));
+            infoBox.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(210, 220, 235), 1, true),
+                new EmptyBorder(12, 14, 12, 14)));
+            infoBox.setAlignmentX(LEFT_ALIGNMENT);
+
+            Font labelFont = new Font("Segoe UI", Font.PLAIN, 12);
+            Font valueFont = new Font("Segoe UI", Font.BOLD, 13);
+
+            JLabel l1 = new JLabel("Ngân hàng:"); l1.setFont(labelFont);
+            JLabel v1 = new JLabel("BIDV");        v1.setFont(valueFont);
+
+            JLabel l2 = new JLabel("Số tài khoản:"); l2.setFont(labelFont);
+            JLabel v2 = new JLabel("8801726545");    v2.setFont(valueFont); v2.setForeground(BLUE);
+
+            JLabel l3 = new JLabel("Số tiền:"); l3.setFont(labelFont);
+            JLabel v3 = new JLabel(VND.format(amount) + " VNĐ"); v3.setFont(valueFont); v3.setForeground(GREEN);
+
+            JLabel l4 = new JLabel("Nội dung CK:"); l4.setFont(labelFont);
+            JLabel v4 = new JLabel(transferNote);    v4.setFont(valueFont); v4.setForeground(RED);
+
+            infoBox.add(l1); infoBox.add(v1);
+            infoBox.add(l2); infoBox.add(v2);
+            infoBox.add(l3); infoBox.add(v3);
+            infoBox.add(l4); infoBox.add(v4);
+            dlgPanel.add(infoBox);
+            dlgPanel.add(Box.createVerticalStrut(10));
+
+            JLabel note2 = new JLabel("<html><i>⚠ Vui lòng nhập ĐÚNG nội dung chuyển khoản để được xác nhận nhanh.<br/>"
+                + "Lệnh sẽ được xác nhận trong vòng 30 phút giờ hành chính.</i></html>");
+            note2.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+            note2.setForeground(MUTED);
+            note2.setAlignmentX(LEFT_ALIGNMENT);
+            dlgPanel.add(note2);
+
+            JOptionPane.showMessageDialog(this, dlgPanel, "Thông tin chuyển khoản", JOptionPane.PLAIN_MESSAGE);
             txtDepositAmount.setText("");
             refreshBalance();
         } else {
@@ -336,7 +399,7 @@ public class MoneyManagementPanel extends JPanel {
         if (ok) {
             loadBankList();
             loadBankCombo();
-            JOptionPane.showMessageDialog(this, "Đã thêm tài khoản ngân hàng thành công!");
+            JOptionPane.showMessageDialog(this, "Đã thêm tài khoản ngân hàng thành công!\nBạn có thể chuyển sang tab Rút tiền để rút ngay.");
         } else {
             error("Thêm thất bại. Vui lòng thử lại!");
         }
@@ -386,9 +449,14 @@ public class MoneyManagementPanel extends JPanel {
         bankList = bankDAO.findByAccount(userId);
         if (cbBankAccounts == null) return;
         cbBankAccounts.removeAllItems();
-        for (BankAccount b : bankList) {
-            cbBankAccounts.addItem(b.getBankName() + " — " + b.getAccountNumber()
-                + (b.getIsLinked() == 1 ? " ⭐" : ""));
+        boolean hasBank = bankList != null && !bankList.isEmpty();
+        if (noBankPanel != null) noBankPanel.setVisible(!hasBank);
+        cbBankAccounts.setVisible(hasBank);
+        if (hasBank) {
+            for (BankAccount b : bankList) {
+                cbBankAccounts.addItem(b.getBankName() + " — " + b.getAccountNumber()
+                    + (b.getIsLinked() == 1 ? " ⭐" : ""));
+            }
         }
     }
 
@@ -460,17 +528,6 @@ public class MoneyManagementPanel extends JPanel {
         b.setOpaque(true);
         b.setAlignmentX(LEFT_ALIGNMENT);
         b.setMaximumSize(new Dimension(Integer.MAX_VALUE, 48));
-        b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        return b;
-    }
-
-    private JButton quickBtn(String label) {
-        JButton b = new JButton(label);
-        b.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        b.setBackground(new Color(240, 246, 255));
-        b.setForeground(BLUE);
-        b.setFocusPainted(false);
-        b.setBorder(BorderFactory.createLineBorder(new Color(200, 220, 245), 1, true));
         b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         return b;
     }

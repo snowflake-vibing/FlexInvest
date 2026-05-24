@@ -49,9 +49,14 @@ public class MissionPanel extends JPanel {
     private JButton btnConvert;
 
     // ── Check-in cells (7 ô) ─────────────────────────────────────────────────
-    private JPanel[] checkInCells = new JPanel[7];
-    private JLabel[] checkInLabels = new JLabel[7];
+    private static final int[] CHECKIN_REWARDS = {5, 10, 15, 20, 30, 50, 75};
+    private JPanel[] checkInCells        = new JPanel[7];
+    private JLabel[] checkInLabels       = new JLabel[7];
+    private JLabel[] checkInRewardLabels = new JLabel[7];
     private JButton  btnCheckIn;
+
+    // ── Mission card selection ────────────────────────────────────────────────
+    private JPanel selectedCard = null;
 
     public MissionPanel(AccountModel account) {
         this.account = account;
@@ -164,10 +169,16 @@ public class MissionPanel extends JPanel {
             icon.setFont(faFont);
             icon.setForeground(new Color(200, 210, 225));
 
-            cell.add(top,  BorderLayout.NORTH);
-            cell.add(icon, BorderLayout.CENTER);
-            checkInCells[i]  = cell;
-            checkInLabels[i] = icon;
+            JLabel reward = new JLabel("+" + CHECKIN_REWARDS[i] + " Token", SwingConstants.CENTER);
+            reward.setFont(new Font("Segoe UI", Font.BOLD, 11));
+            reward.setForeground(PURPLE);
+
+            cell.add(top,    BorderLayout.NORTH);
+            cell.add(icon,   BorderLayout.CENTER);
+            cell.add(reward, BorderLayout.SOUTH);
+            checkInCells[i]        = cell;
+            checkInLabels[i]       = icon;
+            checkInRewardLabels[i] = reward;
             grid.add(cell);
         }
         p.add(grid, BorderLayout.CENTER);
@@ -249,11 +260,18 @@ public class MissionPanel extends JPanel {
                 new Color(200, 210, 225));
         }
 
+        for (int i = 0; i < 7; i++) {
+            boolean done  = i < streak;
+            boolean today = i == streak && streak < 7;
+            checkInRewardLabels[i].setForeground(
+                done  ? new Color(80, 160, 110) :
+                today ? YELLOW :
+                PURPLE);
+        }
+
         boolean checkedToday = streak > 0 && alreadyCheckedInToday();
-        int[] REWARDS = {5, 10, 15, 20, 30, 50, 75};
-        int nextStreak = checkedToday ? streak : streak;
-        if (nextStreak > 6) nextStreak = 0; // if streak >= 7 it resets
-        int reward = REWARDS[nextStreak];
+        int nextStreak = (streak > 6) ? 0 : streak;
+        int reward = CHECKIN_REWARDS[nextStreak];
 
         btnCheckIn.setEnabled(!checkedToday);
         btnCheckIn.setText(checkedToday ? "Đã điểm danh hôm nay" : "Điểm danh ngay (+" + reward + " Token)");
@@ -267,6 +285,8 @@ public class MissionPanel extends JPanel {
     private void updateMissionTabs(List<UserMission> allMissions) {
         JTabbedPane tabs = findTabbedPane();
         if (tabs == null) return;
+
+        selectedCard = null;  // cards are recreated — old reference is stale
 
         // Rebuild tab 1 (WEEKLY) và tab 2 (MONTHLY)
         for (int t = 1; t <= 2; t++) {
@@ -316,6 +336,49 @@ public class MissionPanel extends JPanel {
         UIUtils.styleCard(card);
         card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 90));
         card.setAlignmentX(LEFT_ALIGNMENT);
+        card.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+        // Selection indicator — thanh dọc 4px bên trái, ẩn mặc định
+        JPanel indicator = new JPanel();
+        indicator.setPreferredSize(new Dimension(4, 0));
+        indicator.setBackground(BLUE);
+        indicator.setVisible(false);
+        card.putClientProperty("indicator", indicator);
+        card.add(indicator, BorderLayout.WEST);
+
+        // Click to select / deselect
+        card.addMouseListener(new java.awt.event.MouseAdapter() {
+            private Color normalBg;
+            { normalBg = card.getBackground(); }
+
+            @Override public void mouseEntered(java.awt.event.MouseEvent e) {
+                if (selectedCard != card)
+                    card.setBackground(new Color(245, 248, 255));
+            }
+            @Override public void mouseExited(java.awt.event.MouseEvent e) {
+                if (selectedCard != card)
+                    card.setBackground(normalBg);
+            }
+            @Override public void mouseClicked(java.awt.event.MouseEvent e) {
+                if (selectedCard == card) {
+                    // Bỏ chọn
+                    indicator.setVisible(false);
+                    card.setBackground(normalBg);
+                    selectedCard = null;
+                } else {
+                    // Bỏ chọn card cũ
+                    if (selectedCard != null) {
+                        JPanel prev = (JPanel) selectedCard.getClientProperty("indicator");
+                        if (prev != null) prev.setVisible(false);
+                        selectedCard.setBackground(normalBg);
+                    }
+                    // Chọn card này
+                    indicator.setVisible(true);
+                    card.setBackground(new Color(235, 245, 255));
+                    selectedCard = card;
+                }
+            }
+        });
 
         // Left: title + description
         JPanel left = new JPanel();

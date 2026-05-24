@@ -8,15 +8,31 @@ import java.awt.*;
 public class UIUtils {
 
     // Màu theo mẫu Alpha Logic Center nhưng tông Cam-Vàng (Amber)
-    public static final Color PRIMARY = new Color(245, 158, 11); // Amber #F59E0B
-    public static final Color INDIGO = new Color(245, 158, 11); // Đổi biến INDIGO thành Amber để khỏi lỗi reference
-    public static final Color NAVY = new Color(15, 40, 80);
-    public static final Color TEXT_DARK = new Color(30, 30, 40);
-    public static final Color TEXT_MUTED = new Color(100, 110, 120);
-    public static final Color BORDER_COLOR = new Color(220, 230, 240);
-    public static final Color CARD_BG = Color.WHITE;
-    public static final Color APP_BG = new Color(245, 247, 250); 
+    public static Color PRIMARY = new Color(245, 158, 11); // Amber #F59E0B
+    public static Color INDIGO = new Color(245, 158, 11);
+    public static Color NAVY = new Color(15, 40, 80);
+    public static Color TEXT_DARK = new Color(30, 30, 40);
+    public static Color TEXT_MUTED = new Color(100, 110, 120);
+    public static Color BORDER_COLOR = new Color(220, 230, 240);
+    public static Color CARD_BG = Color.WHITE;
+    public static Color APP_BG = new Color(245, 247, 250);
     public static final Color ACCENT = PRIMARY;
+
+    public static void updateTheme(boolean isDark) {
+        if (isDark) {
+            APP_BG       = new Color(24, 24, 27);
+            CARD_BG      = new Color(39, 39, 42);
+            TEXT_DARK    = new Color(244, 244, 245);
+            TEXT_MUTED   = new Color(161, 161, 170);
+            BORDER_COLOR = new Color(63, 63, 70);
+        } else {
+            APP_BG       = new Color(245, 247, 250);
+            CARD_BG      = Color.WHITE;
+            TEXT_DARK    = new Color(30, 30, 40);
+            TEXT_MUTED   = new Color(100, 110, 120);
+            BORDER_COLOR = new Color(220, 230, 240);
+        }
+    }
 
     /**
      * Chuyển đổi một JPanel thành "Card" thông thường.
@@ -35,7 +51,7 @@ public class UIUtils {
      */
     public static void styleSummaryCard(JPanel panel, Color topBorderColor) {
         panel.setBackground(CARD_BG);
-        panel.putClientProperty("FlatLaf.style", "arc: 0;"); // Bỏ bo góc để viền trên đẹp hơn, hoặc giữ bo tròn.
+        panel.putClientProperty("FlatLaf.style", "arc: 12;");
         panel.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(BORDER_COLOR, 1, true),
@@ -64,7 +80,7 @@ public class UIUtils {
         table.setBackground(CARD_BG);
         table.setFillsViewportHeight(true);
         table.putClientProperty("JTable.showAlternateRowColor", true);
-        table.putClientProperty("FlatLaf.style", "alternateRowColor: #F9FAFB;");
+        // table.putClientProperty("FlatLaf.style", "alternateRowColor: #F9FAFB;");
     }
 
     /**

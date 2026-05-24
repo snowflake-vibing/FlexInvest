@@ -62,8 +62,8 @@ public class EkycDAO {
     public boolean submit(Ekyc ekyc) {
         String sql = "INSERT INTO EKYC (USER_ID, ID_NUMBER, FULL_NAME, DATE_OF_BIRTH, GENDER, "
                    + "PLACE_OF_ORIGIN, PLACE_OF_RESIDENCE, ISSUE_DATE, EXPIRY_DATE, ISSUE_PLACE, "
-                   + "FRONT_IMAGE_URL, BACK_IMAGE_URL, FACE_IMAGE_URL, VERIFIED_STATUS, CREATED_AT) "
-                   + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', CURRENT_TIMESTAMP)";
+                   + "FRONT_IMAGE_URL, BACK_IMAGE_URL, FACE_IMAGE_URL, VERIFIED_STATUS, CREATED_AT, IS_DELETED) "
+                   + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', CURRENT_TIMESTAMP, 0)";
         try (Connection conn = ConnectionUtils.getMyConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, ekyc.getUserId());
@@ -137,6 +137,24 @@ public class EkycDAO {
             e.printStackTrace();
         }
         return null;
+    }
+
+    /** Lấy trạng thái KYC mới nhất của user (UNSUBMITTED nếu chưa nộp). */
+    public String getKycStatusByUserId(int userId) {
+        String sql = "SELECT verified_status FROM (" +
+                     "  SELECT verified_status FROM EKYC WHERE user_id = ? AND is_deleted = 0" +
+                     "  ORDER BY created_at DESC" +
+                     ") WHERE ROWNUM = 1";
+        try (Connection conn = ConnectionUtils.getMyConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getString(1);
+            }
+        } catch (Exception e) {
+            System.err.println("[EkycDAO.getKycStatusByUserId] " + e.getMessage());
+        }
+        return "UNSUBMITTED";
     }
 
     public boolean reject(int kycId, String reason) {

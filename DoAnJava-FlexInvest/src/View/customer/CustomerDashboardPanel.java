@@ -309,6 +309,15 @@ public class CustomerDashboardPanel extends JPanel {
     private void updateKycBanner(Ekyc kyc) {
         kycBanner.removeAll();
 
+        // Admin (roleId=1) và Staff (roleId=2) không cần xác minh eKYC
+        int roleId = account.getUser().getRoleId();
+        if (roleId == 1 || roleId == 2) {
+            kycBanner.setVisible(false);
+            kycBanner.revalidate();
+            kycBanner.repaint();
+            return;
+        }
+
         Color   bg;
         Color   fg   = Color.WHITE;
         String  icon;
@@ -352,10 +361,10 @@ public class CustomerDashboardPanel extends JPanel {
             btn.setBorderPainted(false);
             btn.setFocusPainted(false);
             btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            btn.addActionListener(e ->
-                JOptionPane.showMessageDialog(this,
-                    "Chức năng nộp hồ sơ KYC sẽ được tích hợp trong phiên bản tiếp theo.",
-                    "Nộp hồ sơ eKYC", JOptionPane.INFORMATION_MESSAGE));
+            btn.addActionListener(e -> {
+                EkycDialog.show((Frame) SwingUtilities.getWindowAncestor(this), account);
+                loadData(); // reload status banner sau khi đóng popup
+            });
             kycBanner.add(btn, BorderLayout.EAST);
         }
 

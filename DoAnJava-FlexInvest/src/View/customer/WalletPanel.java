@@ -115,15 +115,15 @@ public class WalletPanel extends JPanel {
         left.add(lbl1);
         left.add(Box.createVerticalStrut(4));
         left.add(lblBalance);
-        left.add(Box.createVerticalStrut(4));
-        left.add(lblLocked);
 
-        btnRefresh = new JButton("Làm mới");
-        btnRefresh.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnRefresh = new JButton("↻");
+        btnRefresh.setFont(new Font("Segoe UI", Font.PLAIN, 20));
         btnRefresh.setBackground(new Color(40, 80, 140));
         btnRefresh.setForeground(Color.WHITE);
         btnRefresh.setBorderPainted(false);
         btnRefresh.setFocusPainted(false);
+        btnRefresh.setPreferredSize(new Dimension(44, 44));
+        btnRefresh.setToolTipText("Làm mới");
         btnRefresh.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btnRefresh.addActionListener(e -> loadData());
 
@@ -211,18 +211,15 @@ public class WalletPanel extends JPanel {
         pagination.setBackground(CARD);
         pagination.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, BORDER_C));
 
-        btnPrev = new JButton("◀  Trước");
-        btnPrev.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        btnPrev.setFocusPainted(false);
+        pagination.add(Box.createHorizontalStrut(10));
+        btnPrev = makeIconBtn("Trước", "\uf053", true);
         btnPrev.addActionListener(e -> { if (currentPage > 0) { currentPage--; showPage(); } });
 
         lblPage = new JLabel("Trang 1 / 1");
         lblPage.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         lblPage.setForeground(MUTED);
 
-        btnNext = new JButton("Tiếp  ▶");
-        btnNext.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        btnNext.setFocusPainted(false);
+        btnNext = makeIconBtn("Tiếp", "\uf054", false);
         btnNext.addActionListener(e -> {
             int total = (int) Math.ceil((double) filteredTx.size() / PAGE_SIZE);
             if (currentPage < total - 1) { currentPage++; showPage(); }
@@ -231,9 +228,59 @@ public class WalletPanel extends JPanel {
         pagination.add(btnPrev);
         pagination.add(lblPage);
         pagination.add(btnNext);
+
+        JButton btnPrint = makeIconBtn("In biên lai", "\uf02f", true);
+        btnPrint.addActionListener(e -> printSelectedInvoice());
+        
+        pagination.add(Box.createHorizontalStrut(30));
+        pagination.add(btnPrint);
+
         p.add(pagination, BorderLayout.SOUTH);
 
         return p;
+    }
+
+    private JButton makeIconBtn(String text, String faIcon, boolean iconLeft) {
+        JButton b = new JButton(text);
+        b.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        b.setFocusPainted(false);
+        b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        
+        java.awt.Font faFont;
+        try {
+            faFont = java.awt.Font.createFont(java.awt.Font.TRUETYPE_FONT,
+                new java.io.File("src/Resources/fa-solid-900.ttf")).deriveFont(12f);
+        } catch (Exception ex) {
+            faFont = new Font("Segoe UI", Font.PLAIN, 12);
+        }
+
+        JLabel iconLbl = new JLabel(faIcon);
+        iconLbl.setFont(faFont);
+        
+        b.setLayout(new FlowLayout(FlowLayout.CENTER, 4, 0));
+        b.setText(""); // clear text from main button layout
+        if (iconLeft) {
+            b.add(iconLbl);
+            b.add(new JLabel(text));
+        } else {
+            b.add(new JLabel(text));
+            b.add(iconLbl);
+        }
+        return b;
+    }
+
+    private void printSelectedInvoice() {
+        int selectedRow = table.getSelectedRow();
+        if (selectedRow < 0) {
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn một giao dịch trong bảng để in.", "Thông báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        int start = currentPage * PAGE_SIZE;
+        int index = start + selectedRow;
+        if (index >= 0 && index < filteredTx.size()) {
+            Transaction tx = filteredTx.get(index);
+            Utils.PDFPrinter.printInvoice(tx, account);
+        }
     }
 
     // =========================================================================
@@ -254,7 +301,6 @@ public class WalletPanel extends JPanel {
                     Wallet w = (Wallet) data[0];
                     if (w != null) {
                         lblBalance.setText(VND.format(w.getAvailableBalance()) + " VNĐ");
-                        lblLocked.setText("Đang giữ: " + VND.format(w.getLockedBalance()) + " VNĐ");
                     }
                     allTx = (List<Transaction>) data[1];
                     applyFilter();

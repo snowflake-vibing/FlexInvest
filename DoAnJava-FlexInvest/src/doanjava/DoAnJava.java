@@ -28,14 +28,7 @@ public class DoAnJava {
         }
         
         javax.swing.SwingUtilities.invokeLater(() -> {
-            Controller.LoginController lc = new Controller.LoginController();
-            Model.AccountModel admin = lc.loginController("admin", "admin123");
-            if (admin != null) {
-                Utils.SessionManager.login(admin);
-                new View.MainPage(admin);
-            } else {
-                new LoginForm();
-            }
+            new LoginForm();
         });
     }
 }
